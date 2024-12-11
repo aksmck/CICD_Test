@@ -1,0 +1,70 @@
+name: Master Deployment Workflow
+
+on: 
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        type: environment
+        required: true
+      function_name:
+        type: choice
+        description: 'Select Data Source to deploy'
+        options:
+        - none
+        - all
+        - IQVIA_SALES
+        - SAP_FICO
+        - SAP_MASTER
+        - SFDC_CRM
+        - VARICENT_SALES
+        required: true
+      databricks_deployment:
+        description: 'Databricks Deployment'
+        type: boolean
+        required: false
+      deploy_linked_service:
+        description: 'Deploy ADF Linked Services'
+        type: boolean
+        required: false
+      deploy_datasets:
+        description: 'Deploy ADF Datasets'
+        type: boolean
+        required: false     
+      deploy_common_pipelines:
+        description: 'Deploy ADF Common Pipelines'
+        type: boolean
+        required: false
+      deploy_triggers:
+        description: 'Deploy ADF Triggers'
+        type: boolean
+        required: false
+      date: 
+        description: 'Deploy changes after a commit date in YYYY-MM-DD format (OPTIONAL)'
+        type: string
+        default: '1999-01-01'
+        required: true
+        
+env:
+  ENVIRONMENT: ${{ inputs.environment }}
+  DATE: ${{ inputs.date }}
+
+jobs:    
+  trigger_workflows_1:
+    name: 'Databricks Deployment'
+    uses: ./.github/workflows/databricks.yml
+    with:
+      environment: 'dev'
+      date: '1999-01-01'
+    secrets: inherit
+              
+  trigger_workflows_2:
+    name: ADF Dataset
+    uses: ./.github/workflows/adf_dataset.yml
+    with:
+      environment: 'dev'
+      date: '1999-01-01'
+    secrets: inherit
+    
+            
+          
