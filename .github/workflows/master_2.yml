@@ -126,7 +126,8 @@ jobs:
     if: ${{ inputs.function_name != 'none' && inputs.function_name != 'all' }}
     strategy:
       matrix:
-        function: [${{ inputs.function_name }}]
+        function: 
+          - ${{ inputs.function_name }}
     runs-on: ubuntu-latest
     steps:
       - name: Deploy Data Source
