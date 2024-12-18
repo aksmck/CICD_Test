@@ -1,0 +1,77 @@
+name: Publish ADF LinkedServie
+
+on: 
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        type: environment
+        required: true  
+      date: 
+        description: 'Deploy changes after a commit date in YYYY-MM-DD format (OPTIONAL)'
+        type: string
+        default: '1999-01-01'
+        required: true
+        
+env:
+  ENVIRONMENT: ${{ inputs.environment }}
+  DATE: ${{ inputs.date }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+               
+      - name: Install Azure CLI
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+                  
+      - name: Get changed-files since
+        id: changed-files-since
+        uses: tj-actions/changed-files@v37
+        with:
+          since: "${{ env.DATE }}"
+          files: "bronze_silver/*/${{ env.ENVIRONMENT }}/linkedService/"
+
+      - name: List all changed files
+        run: |
+          echo "Env: $ENVIRONMENT"
+          echo "################################"
+          for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
+            echo $file
+          done
+          
+      
+      - name: Publish ADF Pipelines
+        run: |          
+          if [[ $ENVIRONMENT == 'dev' ]]; then
+            az login --service-principal --username "${{ secrets.CLIENT }}" --password ${{ secrets.CLIENTSECRET }} --tenant ${{ secrets.TENANT }}
+            az account set -s ${{ secrets.SUBSCRIPTION_ID }}
+            FACTORY_NAME="adf-psasdi-westus-dev-01"
+            RESOURCE_GROUP="rg-psas-decision-intelligence-westus-dev"
+          elif [[ $ENVIRONMENT == 'QAT' ]]; then
+            az login --service-principal --username "${{ secrets.CLIENT_ID_QAT }}" --password ${{ secrets.CLIENT_SECRET_QAT }} --tenant ${{ secrets.TENANT_ID_QAT }}
+            az account set -s $SUBSCRIPTION_ID_QAT
+            FACTORY_NAME="${{ secrets.FACTORY_NAME_QAT }}
+            RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP_QAT }}"
+          elif [[ $ENVIRONMENT == 'PROD' ]]; then
+            az login --service-principal --username "${{ secrets.CLIENT_ID_PROD }}" --password ${{ secrets.CLIENT_SECRET_PROD }} --tenant ${{ secrets.TENANT_ID_PROD }}
+            az account set -s $SUBSCRIPTION_ID_PROD
+            FACTORY_NAME="${{ secrets.FACTORY_NAME_PROD }}
+            RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP_PROD }}"
+          fi
+          echo "Logged in"
+          for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
+            if [[ $file == *'.json' ]]; then
+              echo "File: $file"
+              linked_service_=${file##*/}
+              linked_service_name=${linked_service_%.*}
+              echo "Linked Service name: $linked_service_name"
+              #az datafactory linked-service show --factory-name $FACTORY_NAME --name "AzureBlobStorage1" --resource-group $RESOURCE_GROUP
+              az datafactory linked-service create --factory-name $FACTORY_NAME --properties $file --name $linked_service_name --resource-group $RESOURCE_GROUP
+            fi
+          done
+          
