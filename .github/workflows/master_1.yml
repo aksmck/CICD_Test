@@ -1,23 +1,27 @@
-name: Master Deployment Workflow_1
+name: Master Deployment Workflow
 
 on: 
   workflow_dispatch:
     inputs:
       environment:
         description: 'Environment to deploy'
-        type: environment
+        type: choice
+        options:
+          - dev
+          - qat
+          - prod
         required: true
       function_name:
         type: choice
         description: 'Select Data Source to deploy'
         options:
-        - none
-        - all
-        - IQVIA_SALES
-        - SAP_FICO
-        - SAP_MASTER
-        - SFDC_CRM
-        - VARICENT_SALES
+          - none
+          - all
+          - IQVIA_SALES
+          - SAP_FICO
+          - SAP_MASTER
+          - SFDC_CRM
+          - VARICENT_SALES
         required: true
       databricks_deployment:
         description: 'Databricks Deployment'
@@ -105,14 +109,13 @@ jobs:
       date: ${{ inputs.date }}
     secrets: inherit
 
-  # Deploy functions based on selected data sources
+  # Matrix strategy to deploy based on selected data sources
   deploy_selected_functions:
     name: Deploy Selected Data Sources
     if: ${{ inputs.function_name != 'none' && inputs.function_name != 'all' }}
     strategy:
       matrix:
-        function: 
-          - ${{ inputs.function_name }}
+        function: [${{ inputs.function_name }}]
     runs-on: ubuntu-latest
     steps:
       - name: Deploy Data Source
@@ -120,7 +123,7 @@ jobs:
           echo "Deploying function: ${{ matrix.function }}"
           # Trigger specific deployments based on the selected function.
           # Add your deployment commands here for each function.
-  
+
   # Deploy all data sources if 'all' is selected
   deploy_all_functions:
     name: Deploy All Data Sources
