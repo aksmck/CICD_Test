@@ -1,0 +1,153 @@
+name: Master Deployment Workflow
+
+on: 
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        type: choice
+        options:
+          - dev
+          - qat
+          - prod
+        required: true
+      function_name:
+        type: choice
+        description: 'Select Data Source to deploy'
+        options:
+          - none
+          - all
+          - IQVIA_SALES
+          - SAP_FICO
+          - SAP_MASTER
+          - SFDC_CRM
+          - VARICENT_SALES
+        required: true
+      databricks_deployment:
+        description: 'Databricks Deployment'
+        type: boolean
+        required: false
+      deploy_linked_service:
+        description: 'Deploy ADF Linked Services'
+        type: boolean
+        required: false
+      deploy_datasets:
+        description: 'Deploy ADF Datasets'
+        type: boolean
+        required: false     
+      deploy_common_pipelines:
+        description: 'Deploy ADF Common Pipelines'
+        type: boolean
+        required: false
+      deploy_triggers:
+        description: 'Deploy ADF Triggers'
+        type: boolean
+        required: false
+      date: 
+        description: 'Deploy changes after a commit date in YYYY-MM-DD format (OPTIONAL)'
+        type: string
+        default: '1999-01-01'
+        required: true
+
+env:
+  ENVIRONMENT: ${{ inputs.environment }}
+  DATE: ${{ inputs.date }}
+
+jobs:
+  validate_inputs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate Date Format
+        run: |
+          if ! [[ "${{ inputs.date }}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+            echo "Invalid date format. Please use YYYY-MM-DD."
+            exit 1
+          fi
+      - name: Validate Function Name
+        run: |
+          if [[ "${{ inputs.function_name }}" == "none" && ( "${{ inputs.databricks_deployment }}" == "true" || "${{ inputs.deploy_datasets }}" == "true" || "${{ inputs.deploy_linked_service }}" == "true" || "${{ inputs.deploy_common_pipelines }}" == "true" || "${{ inputs.deploy_triggers }}" == "true" ) ]]; then
+            echo "If 'function_name' is 'none', no deployment options should be selected."
+            exit 1
+          fi
+
+  trigger_workflows:
+    name: Trigger Deployment Workflows
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        deploy_databricks: [true, false]
+        deploy_datasets: [true, false]
+        deploy_linked_service: [true, false]
+        deploy_common_pipelines: [true, false]
+        deploy_triggers: [true, false]
+    steps:
+      - name: Trigger Databricks Deployment
+        if: ${{ matrix.deploy_databricks == true }}
+        uses: ./.github/workflows/databricks.yml
+        with:
+          environment: ${{ inputs.environment }}
+          date: ${{ inputs.date }}
+        secrets: inherit
+
+      - name: Trigger ADF Datasets Deployment
+        if: ${{ matrix.deploy_datasets == true }}
+        uses: ./.github/workflows/adf_dataset.yml
+        with:
+          environment: ${{ inputs.environment }}
+          date: ${{ inputs.date }}
+        secrets: inherit
+
+      - name: Trigger ADF Linked Services Deployment
+        if: ${{ matrix.deploy_linked_service == true }}
+        uses: ./.github/workflows/adf_linked_service.yml
+        with:
+          environment: ${{ inputs.environment }}
+          date: ${{ inputs.date }}
+        secrets: inherit
+
+      - name: Trigger ADF Common Pipelines Deployment
+        if: ${{ matrix.deploy_common_pipelines == true }}
+        uses: ./.github/workflows/adf_common_pipelines.yml
+        with:
+          environment: ${{ inputs.environment }}
+          date: ${{ inputs.date }}
+        secrets: inherit
+
+      - name: Trigger ADF Triggers Deployment
+        if: ${{ matrix.deploy_triggers == true }}
+        uses: ./.github/workflows/adf_triggers.yml
+        with:
+          environment: ${{ inputs.environment }}
+          date: ${{ inputs.date }}
+        secrets: inherit
+
+  deploy_selected_functions:
+    name: Deploy Selected Data Sources
+    if: ${{ inputs.function_name != 'none' && inputs.function_name != 'all' }}
+    strategy:
+      matrix:
+        function: [${{ inputs.function_name }}]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy Data Source
+        run: |
+          echo "Deploying function: ${{ matrix.function }}"
+          # Trigger specific deployments for each selected function.
+
+  deploy_all_functions:
+    name: Deploy All Data Sources
+    if: ${{ inputs.function_name == 'all' }}
+    strategy:
+      matrix:
+        function:
+          - IQVIA_SALES
+          - SAP_FICO
+          - SAP_MASTER
+          - SFDC_CRM
+          - VARICENT_SALES
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy All Functions
+        run: |
+          echo "Deploying all selected functions: ${{ matrix.function }}"
+          # Add deployment logic here for each function in the matrix
