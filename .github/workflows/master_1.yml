@@ -105,13 +105,14 @@ jobs:
       date: ${{ inputs.date }}
     secrets: inherit
 
-  # Matrix strategy to deploy based on selected data sources
+  # Deploy functions based on selected data sources
   deploy_selected_functions:
     name: Deploy Selected Data Sources
     if: ${{ inputs.function_name != 'none' && inputs.function_name != 'all' }}
     strategy:
       matrix:
-        function: [${{ inputs.function_name }}]
+        function: 
+          - ${{ inputs.function_name }}
     runs-on: ubuntu-latest
     steps:
       - name: Deploy Data Source
@@ -119,3 +120,22 @@ jobs:
           echo "Deploying function: ${{ matrix.function }}"
           # Trigger specific deployments based on the selected function.
           # Add your deployment commands here for each function.
+  
+  # Deploy all data sources if 'all' is selected
+  deploy_all_functions:
+    name: Deploy All Data Sources
+    if: ${{ inputs.function_name == 'all' }}
+    strategy:
+      matrix:
+        function: 
+          - IQVIA_SALES
+          - SAP_FICO
+          - SAP_MASTER
+          - SFDC_CRM
+          - VARICENT_SALES
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy Data Source
+        run: |
+          echo "Deploying function: ${{ matrix.function }}"
+          # Trigger specific deployments for each function, depending on your implementation.
