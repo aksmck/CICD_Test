@@ -1,0 +1,680 @@
+TRUNCATE TABLE $$target_table_name;
+WITH 
+CUSTOMER as (
+  select 
+CUST_ACCT_ID AS CUST_ACCT_ID,
+CUST_ACCT_NAM AS CUST_ACCT_NAME,
+ACCT_CLAS_CD AS ACCT_CLASS_CD,
+ACCT_CLAS_DSCR AS ACCT_CLASS_DESC,
+ACCT_DLVRY_ST_ABRV AS STATE,
+NATL_GRP_CD AS NATL_GRP_CD,
+NATL_GRP_NAM AS NATL_GRP_NAME,
+NATL_SUB_GRP_CD AS NATL_SUB_GRP_CD,
+NATL_SUB_GRP_NAM AS NATL_SUB_GRP_NAME,
+CUST_CHN_ID AS CHN_ID,
+CUST_CHN_NAME AS CHN_NAME,
+CUST_RGN_NUM AS CUST_REGION_NUM,
+CUST_RGN_NAME AS CUST_REGION_NAME,
+CMN_GRPID AS CMMN_GRP_ID,
+CMNGRP_NAM AS CMMN_GRP_NAME,
+CMN_ENTID AS CMMN_ENTITY_ID,
+CMNENT_NAM AS CMMN_ENTITY_NAME,
+MPB_COT_CD AS COT_KEY,
+MPB_COT_DESC AS COT_DESC,
+DEA_NUM AS DEA_NUM
+  from $$psas_catalog.gold_master.t_cust_mstr where CURRENT_RECORD_IND = 'Y' and SLS_ORG like "%8545%" and ACTIVE_CUST_IND = 'A'
+),
+ITEM AS (
+  SELECT 
+    DISTINCT
+    item_master.EM_ITEM_NUM as ITEM_NUMBER, 
+    item_master.MPB_BRND_NAME as PROD_NAME,
+    COALESCE(NULLIF(item_master.MNC_CD, ''), '***') AS MNC_PROD_ACCESS, 
+    c.MPB_PRODUCT_ACCESS_CATEGORY as PROD_ACCESS_CTGRY,
+    c.THERAPUTIC_CATEGORY AS THRPUTC_CLASS
+  FROM 
+    (
+      SELECT DISTINCT 
+        EM_ITEM_NUM, 
+        MPB_BRND_NAME, 
+        MNC_CD
+      FROM 
+        $$psas_catalog.gold_master.t_item_mstr 
+      WHERE 
+        CURRENT_RECORD_IND = 'Y' 
+        AND ITEM_ACTVY_CD = 'A'
+        AND MNC_CD NOT IN ('NEW', 'CLN')
+    ) item_master
+  INNER JOIN 
+    (
+      SELECT 
+        upper(BRAND_NAME) AS BRAND_NAME, 
+        MPB_PRODUCT_ACCESS_CATEGORY, 
+        THERAPUTIC_CATEGORY 
+      FROM 
+        $$psas_catalog.slvr_sap_master.t_mpb_brand_with_additional_attr
+      WHERE 
+        MPB_PRODUCT_ACCESS_CATEGORY IN ('Approval', 'COT', 'REMS')
+    ) c ON trim(upper((case when item_master.MPB_BRND_NAME is not null then item_master.MPB_BRND_NAME end))) = trim(upper(c.BRAND_NAME))
+),
+ITEM_CUSTOMER AS (
+  SELECT
+    c.CUST_ACCT_ID,
+    c.CUST_ACCT_NAME,
+    c.ACCT_CLASS_CD,
+    c.ACCT_CLASS_DESC,
+    c.STATE,
+    c.NATL_GRP_CD,
+    c.NATL_GRP_NAME,
+    c.NATL_SUB_GRP_CD,
+    c.NATL_SUB_GRP_NAME,
+    c.CHN_ID,
+    c.CHN_NAME,
+    c.CUST_REGION_NUM,
+    c.CUST_REGION_NAME,
+    c.CMMN_GRP_ID,
+    c.CMMN_GRP_NAME,
+    c.CMMN_ENTITY_ID,
+    c.CMMN_ENTITY_NAME,
+    c.DEA_NUM,
+    c.COT_KEY,
+    c.COT_DESC,
+    i.MNC_PROD_ACCESS,
+    i.PROD_NAME,
+    i.PROD_ACCESS_CTGRY,
+    i.THRPUTC_CLASS,
+    'NO ACCESS' AS CUST_PROD_ACCESS_INDICATOR
+  FROM
+    CUSTOMER c
+    CROSS JOIN (
+      SELECT
+        DISTINCT MNC_PROD_ACCESS,
+        PROD_NAME,
+        PROD_ACCESS_CTGRY,
+        THRPUTC_CLASS
+      FROM
+        ITEM
+    ) i
+),
+QUALIFIED AS (
+  SELECT
+    ic.CUST_ACCT_ID,
+    ic.CUST_ACCT_NAME,
+    ic.ACCT_CLASS_CD,
+    ic.ACCT_CLASS_DESC,
+    ic.STATE,
+    ic.NATL_GRP_CD,
+    ic.NATL_GRP_NAME,
+    ic.NATL_SUB_GRP_CD,
+    ic.NATL_SUB_GRP_NAME,
+    ic.CHN_ID,
+    ic.CHN_NAME,
+    ic.CUST_REGION_NUM,
+    ic.CUST_REGION_NAME,
+    ic.CMMN_GRP_ID,
+    ic.CMMN_GRP_NAME,
+    ic.CMMN_ENTITY_ID,
+    ic.CMMN_ENTITY_NAME,
+    ic.DEA_NUM,
+    ic.COT_KEY,
+    ic.COT_DESC,
+    ic.MNC_PROD_ACCESS,
+    ic.PROD_NAME,
+    ic.PROD_ACCESS_CTGRY,
+    ic.THRPUTC_CLASS,
+    CASE
+      WHEN (
+        ac_cust.CUST_ACCT_ID IS NOT NULL
+        AND ac_cust.MNC_PROD_ACCESS IS NOT NULL
+      )
+      OR (
+        ac_acct.ACCT_CLASS_CD IS NOT NULL
+        AND ac_acct.MNC_PROD_ACCESS IS NOT NULL
+      )
+      OR (
+        ac_state.STATE IS NOT NULL
+        AND ac_state.MNC_PROD_ACCESS IS NOT NULL
+      )
+      OR (
+        ac_chn_ng_sng.CHN_ID IS NOT NULL
+        AND ac_chn_ng_sng.NATL_GRP_CD IS NOT NULL
+        AND ac_chn_ng_sng.NATL_SUB_GRP_CD IS NOT NULL
+        AND ac_chn_ng_sng.MNC_PROD_ACCESS IS NOT NULL
+      )
+      OR (
+        ac_chn_ng.CHN_ID IS NOT NULL
+        AND ac_chn_ng.NATL_GRP_CD IS NOT NULL
+        AND ac_chn_ng.MNC_PROD_ACCESS IS NOT NULL
+      )
+      OR (
+        ac_chn.CHN_ID IS NOT NULL
+        AND ac_chn.MNC_PROD_ACCESS IS NOT NULL
+      )
+      OR (
+        ac_ng.NATL_GRP_CD IS NOT NULL
+        AND ac_ng.MNC_PROD_ACCESS IS NOT NULL
+      )
+      OR (
+        ac_ng_sng_rgn.NATL_GRP_CD IS NOT NULL
+        AND ac_ng_sng_rgn.NATL_SUB_GRP_CD IS NOT NULL
+        AND ac_ng_sng_rgn.CUST_REGION_NUM IS NOT NULL
+        AND ac_ng_sng_rgn.MNC_PROD_ACCESS IS NOT NULL
+      )
+      OR (
+        ac_cot.COT_KEY IS NOT NULL
+        AND ac_cot.MNC_PROD_ACCESS IS NOT NULL
+      ) THEN 'QUALIFIED'
+      ELSE ic.CUST_PROD_ACCESS_INDICATOR
+    END AS CUST_PROD_ACCESS_INDICATOR
+  FROM
+    ITEM_CUSTOMER ic
+    LEFT JOIN (
+      SELECT
+        DISTINCT CUST_ACCT_ID,
+        MNC_CD AS MNC_PROD_ACCESS
+      FROM
+        $$catalog_name.EDP_PSAS_DI_USP_SILVER.T_MNC_INC_CUST
+      WHERE
+        SLS_ORG LIKE '%8545%'
+        AND CURRENT_DATE BETWEEN EFFCTV_DT
+        AND EXPR_DT
+    ) ac_cust ON LTRIM('0', ic.CUST_ACCT_ID) = LTRIM('0', ac_cust.CUST_ACCT_ID)
+    AND ic.MNC_PROD_ACCESS = ac_cust.MNC_PROD_ACCESS
+    AND ic.CUST_ACCT_ID IS NOT NULL
+    AND ac_cust.CUST_ACCT_ID IS NOT NULL
+    AND ic.MNC_PROD_ACCESS IS NOT NULL
+    AND ac_cust.MNC_PROD_ACCESS IS NOT NULL
+    LEFT JOIN (
+      SELECT
+        DISTINCT ACCT_CLASS_CD,
+        MNC_CD AS MNC_PROD_ACCESS
+      FROM
+        $$catalog_name.EDP_PSAS_DI_USP_SILVER.T_MNC_INC_AC
+      WHERE
+        SLS_ORG LIKE '%8545%'
+        AND CURRENT_DATE BETWEEN EFFCTV_DT
+        AND EXPR_DT
+    ) ac_acct ON LTRIM('0', ic.ACCT_CLASS_CD) = LTRIM('0', ac_acct.ACCT_CLASS_CD)
+    AND ic.MNC_PROD_ACCESS = ac_acct.MNC_PROD_ACCESS
+    AND ic.ACCT_CLASS_CD IS NOT NULL
+    AND ac_acct.ACCT_CLASS_CD IS NOT NULL
+    AND ic.MNC_PROD_ACCESS IS NOT NULL
+    AND ac_acct.MNC_PROD_ACCESS IS NOT NULL
+    LEFT JOIN (
+      SELECT
+        DISTINCT STATE,
+        MNC_CD AS MNC_PROD_ACCESS
+      FROM
+        $$catalog_name.EDP_PSAS_DI_USP_SILVER.T_MNC_INC_ST
+      WHERE
+        SLS_ORG LIKE '%8545%'
+        AND CURRENT_DATE BETWEEN EFFCTV_DT
+        AND EXPR_DT
+    ) ac_state ON TRIM(ic.STATE) = TRIM(ac_state.STATE)
+    AND ic.MNC_PROD_ACCESS = ac_state.MNC_PROD_ACCESS
+    AND ic.STATE IS NOT NULL
+    AND ac_state.STATE IS NOT NULL
+    AND ic.MNC_PROD_ACCESS IS NOT NULL
+    AND ac_state.MNC_PROD_ACCESS IS NOT NULL
+    LEFT JOIN (
+      SELECT
+        DISTINCT CHN_CD AS CHN_ID,
+        NATL_GRP_CD,
+        NATL_SUB_GRP_CD,
+        MNC_CD AS MNC_PROD_ACCESS
+      FROM
+        $$catalog_name.EDP_PSAS_DI_USP_SILVER.T_MNC_INC_CHN_NG_SNG
+      WHERE
+        SLS_ORG LIKE '%8545%'
+        AND CURRENT_DATE BETWEEN EFFCTV_DT
+        AND EXPR_DT
+    ) ac_chn_ng_sng ON LTRIM('0', ic.CHN_ID) = LTRIM('0', ac_chn_ng_sng.CHN_ID)
+    AND LTRIM('0', ic.NATL_GRP_CD) = LTRIM('0', ac_chn_ng_sng.NATL_GRP_CD)
+    AND LTRIM('0', ic.NATL_SUB_GRP_CD) = LTRIM('0', ac_chn_ng_sng.NATL_SUB_GRP_CD)
+    AND ic.MNC_PROD_ACCESS = ac_chn_ng_sng.MNC_PROD_ACCESS
+    AND ic.CHN_ID IS NOT NULL
+    AND ac_chn_ng_sng.CHN_ID IS NOT NULL
+    AND ic.NATL_GRP_CD IS NOT NULL
+    AND ac_chn_ng_sng.NATL_GRP_CD IS NOT NULL
+    AND ic.NATL_SUB_GRP_CD IS NOT NULL
+    AND ac_chn_ng_sng.NATL_SUB_GRP_CD IS NOT NULL
+    AND ic.MNC_PROD_ACCESS IS NOT NULL
+    AND ac_chn_ng_sng.MNC_PROD_ACCESS IS NOT NULL
+    LEFT JOIN (
+      SELECT
+        DISTINCT CHN_CD AS CHN_ID,
+        NATL_GRP_CD,
+        MNC_CD AS MNC_PROD_ACCESS
+      FROM
+        $$catalog_name.EDP_PSAS_DI_USP_SILVER.T_MNC_INC_CHN_NG
+      WHERE
+        SLS_ORG LIKE '%8545%'
+        AND CURRENT_DATE BETWEEN EFFCTV_DT
+        AND EXPR_DT
+    ) ac_chn_ng ON LTRIM('0', ic.CHN_ID) = LTRIM('0', ac_chn_ng.CHN_ID)
+    AND LTRIM('0', ic.NATL_GRP_CD) = LTRIM('0', ac_chn_ng.NATL_GRP_CD)
+    AND ic.MNC_PROD_ACCESS = ac_chn_ng.MNC_PROD_ACCESS
+    AND ic.CHN_ID IS NOT NULL
+    AND ac_chn_ng.CHN_ID IS NOT NULL
+    AND ic.NATL_GRP_CD IS NOT NULL
+    AND ac_chn_ng.NATL_GRP_CD IS NOT NULL
+    AND ic.MNC_PROD_ACCESS IS NOT NULL
+    AND ac_chn_ng.MNC_PROD_ACCESS IS NOT NULL
+    LEFT JOIN (
+      SELECT
+        DISTINCT CHN_CD AS CHN_ID,
+        MNC_CD AS MNC_PROD_ACCESS
+      FROM
+        $$catalog_name.EDP_PSAS_DI_USP_SILVER.T_MNC_INC_CHN
+      WHERE
+        SLS_ORG LIKE '%8545%'
+        AND CURRENT_DATE BETWEEN EFFCTV_DT
+        AND EXPR_DT
+    ) ac_chn ON LTRIM('0', ic.CHN_ID) = LTRIM('0', ac_chn.CHN_ID)
+    AND ic.MNC_PROD_ACCESS = ac_chn.MNC_PROD_ACCESS
+    AND ic.CHN_ID IS NOT NULL
+    AND ac_chn.CHN_ID IS NOT NULL
+    AND ic.MNC_PROD_ACCESS IS NOT NULL
+    AND ac_chn.MNC_PROD_ACCESS IS NOT NULL
+    LEFT JOIN (
+      SELECT
+        DISTINCT NATL_GRP_CD,
+        MNC_CD AS MNC_PROD_ACCESS
+      FROM
+        $$catalog_name.EDP_PSAS_DI_USP_SILVER.T_MNC_INC_NG
+      WHERE
+        SLS_ORG LIKE '%8545%'
+        AND CURRENT_DATE BETWEEN EFFCTV_DT
+        AND EXPR_DT
+    ) ac_ng ON LTRIM('0', ic.NATL_GRP_CD) = LTRIM('0', ac_ng.NATL_GRP_CD)
+    AND ic.MNC_PROD_ACCESS = ac_ng.MNC_PROD_ACCESS
+    AND ic.NATL_GRP_CD IS NOT NULL
+    AND ac_ng.NATL_GRP_CD IS NOT NULL
+    AND ic.MNC_PROD_ACCESS IS NOT NULL
+    AND ac_ng.MNC_PROD_ACCESS IS NOT NULL
+    LEFT JOIN (
+      SELECT
+        DISTINCT NATL_GRP_CD,
+        NATL_SUB_GRP_CD,
+        CUST_REGION_NUM,
+        MNC_CD AS MNC_PROD_ACCESS
+      FROM
+        $$catalog_name.EDP_PSAS_DI_USP_SILVER.T_MNC_INC_NG_SNG_RGN
+      WHERE
+        SLS_ORG LIKE '%8545%'
+        AND CURRENT_DATE BETWEEN EFFCTV_DT
+        AND EXPR_DT
+    ) ac_ng_sng_rgn ON LTRIM('0', ic.NATL_GRP_CD) = LTRIM('0', ac_ng_sng_rgn.NATL_GRP_CD)
+    AND LTRIM('0', ic.NATL_SUB_GRP_CD) = LTRIM('0', ac_ng_sng_rgn.NATL_SUB_GRP_CD)
+    AND LTRIM('0', ic.CUST_REGION_NUM) = LTRIM('0', ac_ng_sng_rgn.CUST_REGION_NUM)
+    AND ic.MNC_PROD_ACCESS = ac_ng_sng_rgn.MNC_PROD_ACCESS
+    AND ic.NATL_GRP_CD IS NOT NULL
+    AND ac_ng_sng_rgn.NATL_GRP_CD IS NOT NULL
+    AND ic.NATL_SUB_GRP_CD IS NOT NULL
+    AND ac_ng_sng_rgn.NATL_SUB_GRP_CD IS NOT NULL
+    AND ic.CUST_REGION_NUM IS NOT NULL
+    AND ac_ng_sng_rgn.CUST_REGION_NUM IS NOT NULL
+    AND ic.MNC_PROD_ACCESS IS NOT NULL
+    AND ac_ng_sng_rgn.MNC_PROD_ACCESS IS NOT NULL
+    LEFT JOIN (
+      SELECT
+        DISTINCT MPB_COT_CD AS COT_KEY,
+        MNC_CD AS MNC_PROD_ACCESS
+      FROM
+        $$catalog_name.EDP_PSAS_DI_USP_SILVER.T_MNC_INC_COT
+      WHERE
+        SLS_ORG LIKE '%8545%'
+        AND CURRENT_DATE BETWEEN EFFCTV_DT
+        AND EXPR_DT
+    ) ac_cot ON LTRIM('0', ic.COT_KEY) = LTRIM('0', ac_cot.COT_KEY)
+    AND ic.MNC_PROD_ACCESS = ac_cot.MNC_PROD_ACCESS
+    AND ic.COT_KEY IS NOT NULL
+    AND ac_cot.COT_KEY IS NOT NULL
+    AND ic.MNC_PROD_ACCESS IS NOT NULL
+    AND ac_cot.MNC_PROD_ACCESS IS NOT NULL
+),
+EXCLUDED AS (
+  SELECT
+    DISTINCT c.CUST_ACCT_ID,
+    c.CUST_ACCT_NAME,
+    c.ACCT_CLASS_CD,
+    c.ACCT_CLASS_DESC,
+    c.STATE,
+    c.NATL_GRP_CD,
+    c.NATL_GRP_NAME,
+    c.NATL_SUB_GRP_CD,
+    c.NATL_SUB_GRP_NAME,
+    c.CHN_ID,
+    c.CHN_NAME,
+    c.CUST_REGION_NUM,
+    c.CUST_REGION_NAME,
+    c.CMMN_GRP_ID,
+    c.CMMN_GRP_NAME,
+    c.CMMN_ENTITY_ID,
+    c.CMMN_ENTITY_NAME,
+    c.DEA_NUM,
+    c.COT_KEY,
+    c.COT_DESC,
+    i.MNC_PROD_ACCESS,
+    i.PROD_NAME,
+    i.PROD_ACCESS_CTGRY,
+    i.THRPUTC_CLASS,
+    'EXCLUDED' AS CUST_PROD_ACCESS_INDICATOR
+  FROM
+    (
+      SELECT
+        c.*,
+        exc.MTRL_NUM
+      FROM
+        CUSTOMER c
+        INNER JOIN (
+          SELECT
+            DISTINCT CUST_ACCT_ID,
+            LTRIM('0', MTRL_NUM) AS MTRL_NUM
+          FROM
+            $$catalog_name.EDP_PSAS_DI_USP_SILVER.T_MNC_EXC_CUST_ITEM
+          WHERE
+            SLS_ORG LIKE '%8545%'
+            AND CURRENT_DATE BETWEEN EFFCTV_DT
+            AND EXPR_DT
+        ) exc ON LTRIM('0', c.CUST_ACCT_ID) = LTRIM('0', exc.CUST_ACCT_ID)
+        AND c.CUST_ACCT_ID IS NOT NULL
+        AND exc.CUST_ACCT_ID IS NOT NULL
+      UNION
+      SELECT
+        c.*,
+        exc.MTRL_NUM
+      FROM
+        CUSTOMER c
+        INNER JOIN (
+          SELECT
+            DISTINCT ACCT_CLASS_CD,
+            LTRIM('0', MTRL_NUM) AS MTRL_NUM
+          FROM
+            $$catalog_name.EDP_PSAS_DI_USP_SILVER.T_MNC_EXC_AC_ITEM
+          WHERE
+            SLS_ORG LIKE '%8545%'
+            AND CURRENT_DATE BETWEEN EFFCTV_DT
+            AND EXPR_DT
+        ) exc ON LTRIM('0', c.ACCT_CLASS_CD) = LTRIM('0', exc.ACCT_CLASS_CD)
+        AND c.ACCT_CLASS_CD IS NOT NULL
+        AND exc.ACCT_CLASS_CD IS NOT NULL
+      UNION
+      SELECT
+        c.*,
+        exc.MTRL_NUM
+      FROM
+        CUSTOMER c
+        INNER JOIN (
+          SELECT
+            DISTINCT NATL_GRP_CD,
+            LTRIM('0', MTRL_NUM) AS MTRL_NUM
+          FROM
+            $$catalog_name.EDP_PSAS_DI_USP_SILVER.T_MNC_EXC_NG_ITEM
+          WHERE
+            SLS_ORG LIKE '%8545%'
+            AND CURRENT_DATE BETWEEN EFFCTV_DT
+            AND EXPR_DT
+        ) exc ON LTRIM('0', c.NATL_GRP_CD) = LTRIM('0', exc.NATL_GRP_CD)
+        AND c.NATL_GRP_CD IS NOT NULL
+        AND exc.NATL_GRP_CD IS NOT NULL
+      UNION
+      SELECT
+        c.*,
+        exc.MTRL_NUM
+      FROM
+        CUSTOMER c
+        INNER JOIN (
+          SELECT
+            DISTINCT CHN_CD AS CHN_ID,
+            LTRIM('0', MTRL_NUM) AS MTRL_NUM
+          FROM
+            $$catalog_name.EDP_PSAS_DI_USP_SILVER.T_MNC_EXC_CHN_ITEM
+          WHERE
+            SLS_ORG LIKE '%8545%'
+            AND CURRENT_DATE BETWEEN EFFCTV_DT
+            AND EXPR_DT
+        ) exc ON LTRIM('0', c.CHN_ID) = LTRIM('0', exc.CHN_ID)
+        AND c.CHN_ID IS NOT NULL
+        AND exc.CHN_ID IS NOT NULL
+      UNION
+      SELECT
+        c.*,
+        exc.MTRL_NUM
+      FROM
+        CUSTOMER c
+        INNER JOIN (
+          SELECT
+            DISTINCT NATL_GRP_CD,
+            NATL_SUB_GRP_CD,
+            LTRIM('0', MTRL_NUM) AS MTRL_NUM
+          FROM
+            $$catalog_name.EDP_PSAS_DI_USP_SILVER.T_MNC_EXC_NG_SNG_ITEM
+          WHERE
+            SLS_ORG LIKE '%8545%'
+            AND CURRENT_DATE BETWEEN EFFCTV_DT
+            AND EXPR_DT
+        ) exc ON LTRIM('0', c.NATL_GRP_CD) = LTRIM('0', exc.NATL_GRP_CD)
+        AND LTRIM('0', c.NATL_SUB_GRP_CD) = LTRIM('0', exc.NATL_SUB_GRP_CD)
+        AND c.NATL_GRP_CD IS NOT NULL
+        AND exc.NATL_GRP_CD IS NOT NULL
+        AND c.NATL_SUB_GRP_CD IS NOT NULL
+        AND exc.NATL_SUB_GRP_CD IS NOT NULL
+    ) c
+    INNER JOIN ITEM i ON LTRIM('0', i.ITEM_NUMBER) = LTRIM('0', c.MTRL_NUM)
+    AND i.ITEM_NUMBER IS NOT NULL
+    AND c.MTRL_NUM IS NOT NULL
+),
+COMBINED AS (
+  SELECT
+    incl.CUST_ACCT_ID,
+    incl.CUST_ACCT_NAME,
+    incl.ACCT_CLASS_CD,
+    incl.ACCT_CLASS_DESC,
+    incl.STATE,
+    incl.NATL_GRP_CD,
+    incl.NATL_GRP_NAME,
+    incl.NATL_SUB_GRP_CD,
+    incl.NATL_SUB_GRP_NAME,
+    incl.CHN_ID,
+    incl.CHN_NAME,
+    incl.CUST_REGION_NUM,
+    incl.CUST_REGION_NAME,
+    incl.CMMN_GRP_ID,
+    incl.CMMN_GRP_NAME,
+    incl.CMMN_ENTITY_ID,
+    incl.CMMN_ENTITY_NAME,
+    incl.DEA_NUM,
+    incl.COT_KEY,
+    incl.COT_DESC,
+    incl.MNC_PROD_ACCESS,
+    incl.PROD_NAME,
+    incl.PROD_ACCESS_CTGRY,
+    incl.THRPUTC_CLASS,
+    CASE
+      WHEN excl.CUST_ACCT_ID IS NOT NULL
+      AND incl.CUST_PROD_ACCESS_INDICATOR = 'NO ACCESS' THEN excl.CUST_PROD_ACCESS_INDICATOR
+      WHEN excl.CUST_ACCT_ID IS NOT NULL
+      AND incl.CUST_PROD_ACCESS_INDICATOR = 'QUALIFIED' THEN 'QUALIFIED BUT EXCLUDED'
+      ELSE incl.CUST_PROD_ACCESS_INDICATOR
+    END AS CUST_PROD_ACCESS_INDICATOR
+  FROM
+    QUALIFIED incl
+    LEFT JOIN (
+      SELECT
+        *
+      FROM
+        EXCLUDED
+    ) excl ON LTRIM('0', incl.CUST_ACCT_ID) = LTRIM('0', excl.CUST_ACCT_ID)
+    AND incl.MNC_PROD_ACCESS = excl.MNC_PROD_ACCESS
+    AND LTRIM('0', incl.PROD_NAME) = LTRIM('0', excl.PROD_NAME)
+    AND incl.CUST_ACCT_ID IS NOT NULL
+    AND excl.CUST_ACCT_ID IS NOT NULL
+    AND incl.MNC_PROD_ACCESS IS NOT NULL
+    AND excl.MNC_PROD_ACCESS IS NOT NULL
+    AND incl.PROD_NAME IS NOT NULL
+    AND excl.PROD_NAME IS NOT NULL
+),
+LEAKAGE AS (
+  SELECT
+    comb.*,
+    CASE
+      WHEN lkg.PROD_NAME IS NOT NULL THEN TRUE
+      ELSE FALSE
+    END AS LKG_FLG
+  FROM
+    COMBINED comb
+    LEFT JOIN (
+      SELECT
+        DISTINCT UPPER(PROD_NAME) AS PROD_NAME
+      FROM
+        $$psas_catalog.gold_sales.VW_MPB_LKG_SLS_REP_PRODUCTS_INDIRECT
+      WHERE
+        upper(MPB_SGMNT) = 'ACUTE'
+        AND upper(PROD_CTGRY) = 'SPECIALTY'
+        AND UPPER(PROD_ACCESS_CTGRY) IN ('APPROVAL', 'COT', 'REMS')
+        AND CAST(YR_MTH AS DATE) = (
+          SELECT
+            MAX(CAST(YR_MTH AS DATE))
+          FROM
+            $$psas_catalog.gold_sales.VW_MPB_LKG_SLS_REP_PRODUCTS_INDIRECT
+        )
+    ) lkg ON trim(UPPER(comb.PROD_NAME)) = trim(upper(lkg.PROD_NAME))
+    AND comb.PROD_NAME IS NOT NULL
+    AND lkg.PROD_NAME IS NOT NULL
+),
+FINAL_RESULT AS (
+  SELECT
+    l.CUST_ACCT_ID,
+    l.PROD_NAME,
+    l.MNC_PROD_ACCESS,
+    l.CMMN_GRP_ID,
+    l.CMMN_GRP_NAME,
+    l.CMMN_ENTITY_ID,
+    l.CMMN_ENTITY_NAME,
+    l.CUST_ACCT_NAME,
+    l.CHN_ID,
+    l.CHN_NAME,
+    l.NATL_GRP_CD,
+    l.NATL_GRP_NAME,
+    l.NATL_SUB_GRP_CD,
+    l.NATL_SUB_GRP_NAME,
+    l.ACCT_CLASS_CD,
+    l.ACCT_CLASS_DESC,
+    l.COT_KEY,
+    l.COT_DESC,
+    l.DEA_NUM,
+    l.CUST_REGION_NUM,
+    l.CUST_REGION_NAME,
+    l.STATE,
+    l.CUST_PROD_ACCESS_INDICATOR,
+    CASE
+      WHEN COUNT(*) OVER (
+        PARTITION BY LTRIM('0', l.CMMN_ENTITY_ID),
+        UPPER(l.MNC_PROD_ACCESS)
+      ) = SUM(
+        CASE
+          WHEN UPPER(l.CUST_PROD_ACCESS_INDICATOR) = 'EXCLUDED' THEN 1
+          ELSE 0
+        END
+      ) OVER (
+        PARTITION BY LTRIM('0', l.CMMN_ENTITY_ID),
+        UPPER(l.MNC_PROD_ACCESS)
+      ) THEN 'EXCLUDED'
+      WHEN COUNT(*) OVER (
+        PARTITION BY LTRIM('0', l.CMMN_ENTITY_ID),
+        UPPER(l.MNC_PROD_ACCESS)
+      ) = SUM(
+        CASE
+          WHEN UPPER(l.CUST_PROD_ACCESS_INDICATOR) = 'NO ACCESS' THEN 1
+          ELSE 0
+        END
+      ) OVER (
+        PARTITION BY LTRIM('0', l.CMMN_ENTITY_ID),
+        UPPER(l.MNC_PROD_ACCESS)
+      ) THEN 'NO ACCESS'
+      ELSE 'QUALIFIED'
+    END AS CMMN_ENTITY_PROD_ACCESS_INDICATOR,
+    l.PROD_ACCESS_CTGRY,
+    l.THRPUTC_CLASS,
+    l.LKG_FLG
+  FROM
+    LEAKAGE l
+),
+FINAL AS (
+  SELECT * FROM FINAL_RESULT
+)
+INSERT INTO $$target_table_name
+ (
+    CUST_ACCT_ID,
+    PROD_NAME,
+    MNC_PROD_ACCESS,
+    CMMN_GRP_ID,
+    CMMN_GRP_NAME,
+    CMMN_ENTITY_ID,
+    CMMN_ENTITY_NAME,
+    CUST_ACCT_NAME,
+    CHN_ID,
+    CHN_NAME,
+    NATL_GRP_CD,
+    NATL_GRP_NAME,
+    NATL_SUB_GRP_CD,
+    NATL_SUB_GRP_NAME,
+    ACCT_CLASS_CD,
+    ACCT_CLASS_DESC,
+    COT_KEY,
+    COT_DESC,
+    DEA_NUM,
+    CUST_REGION_NUM,
+    CUST_REGION_NAME,
+    STATE,
+    CUST_PROD_ACCESS_INDICATOR,
+    CMMN_ENTITY_PROD_ACCESS_INDICATOR,
+    PROD_ACCESS_CTGRY,
+    THRPUTC_CLASS,
+    LKG_FLG,
+    BUSINESS_UNIT,
+    SEGMENT,
+    RECORD_LOAD_TIME,
+    DATABRICKS_RUN_ID,
+    DATABRICKS_JOB_ID,
+    INSERT_TS,
+    UPDATE_TS
+  )
+SELECT
+    CUST_ACCT_ID,
+    PROD_NAME,
+    MNC_PROD_ACCESS,
+    CMMN_GRP_ID,
+    CMMN_GRP_NAME,
+    CMMN_ENTITY_ID,
+    CMMN_ENTITY_NAME,
+    CUST_ACCT_NAME,
+    CHN_ID,
+    CHN_NAME,
+    NATL_GRP_CD,
+    NATL_GRP_NAME,
+    NATL_SUB_GRP_CD,
+    NATL_SUB_GRP_NAME,
+    ACCT_CLASS_CD,
+    ACCT_CLASS_DESC,
+    COT_KEY,
+    COT_DESC,
+    DEA_NUM,
+    CUST_REGION_NUM,
+    CUST_REGION_NAME,
+    STATE,
+    CUST_PROD_ACCESS_INDICATOR,
+    CMMN_ENTITY_PROD_ACCESS_INDICATOR,
+    PROD_ACCESS_CTGRY,
+    THRPUTC_CLASS,
+    LKG_FLG,
+    'PSAS' AS BUSINESS_UNIT,
+    'US PHARMA' AS SEGMENT,
+    CURRENT_TIMESTAMP() AS RECORD_LOAD_TIME,
+    '$$DATABRICKS_RUN_ID' AS DATABRICKS_RUN_ID,
+    '$$DATABRICKS_JOB_ID' AS DATABRICKS_JOB_ID,
+    CURRENT_TIMESTAMP() AS INSERT_TS,
+    CURRENT_TIMESTAMP() AS UPDATE_TS
+FROM
+  FINAL;
