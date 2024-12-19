@@ -1,42 +1,30 @@
 name: Databricks Deployment
 
-on: 
-  workflow_dispatch:
+on:
+  workflow_call:
     inputs:
       environment:
-        description: 'Environment to deploy'
-        type: environment
-        required: true
-      publish_ingestion_utilites:
-        description: 'Publish Ingestion Utilites'
-        type: boolean
-        required: false
-      publish_ddl:
-        description: 'Publish DDL'
-        type: boolean
-        required: false
-      publish_dml:
-        description: 'Publish DML'
-        type: boolean
-        required: false
-      date: 
-        description: 'Deploy changes after a commit date in YYYY-MM-DD format (OPTIONAL)'
         type: string
-        default: '1999-01-01'
         required: true
-        
+      date:
+        type: string
+        required: true
+      databricks_deployment_steps:
+        type: string
+        required: true
+
 env:
   ENVIRONMENT: ${{ inputs.environment }}
   DATE: ${{ inputs.date }}
-  
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-          
-      - name: Get changed-files since
+
+      - name: Get changed files since
         id: changed-files-since
         uses: tj-actions/changed-files@v37
         with:
@@ -46,49 +34,51 @@ jobs:
       - name: Install Databricks CLI
         run: pip install databricks-cli
 
-      - name: Deploy files to Databricks Workspace
-        env:
-          #DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          #DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          ENVIRONMENT: ${{ inputs.environment }}
-
+      - name: Setup Databricks environment
         run: |
-          mkdir -p /tmp/cu/py
-          mkdir -p /tmp/cu/ddl_dml
-          ls -l /tmp/cu/
-          echo "Environment: $ENVIRONMENT"
-          if [ $ENVIRONMENT == 'dev' ]; then 
-          export DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST_DEV }}
-          export DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN_DEV }}
-          elif [ $ENVIRONMENT == 'qat' ]; then
-          export DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST_QAT }}
-          export DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN_QAT }}
-          elif [ $ENVIRONMENT == 'prod' ]; then
-          export DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST_PROD }}
-          export DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN_PROD }}
+          if [ "${{ inputs.environment }}" == 'dev' ]; then 
+            export DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST_DEV }}
+            export DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN_DEV }}
+          elif [ "${{ inputs.environment }}" == 'qat' ]; then
+            export DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST_QAT }}
+            export DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN_QAT }}
+          elif [ "${{ inputs.environment }}" == 'prod' ]; then
+            export DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST_PROD }}
+            export DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN_PROD }}
+          fi
+
+      - name: Deploy Databricks Files
+        run: |
+          echo "Deploying to Databricks for environment: ${{ inputs.environment }} after date: ${{ inputs.date }}"
+          
+          # Logic for deploying Databricks files based on deployment step input
+          if [[ "${{ inputs.databricks_deployment_steps }}" == "ingestion_utilities" ]]; then
+            echo "Deploying Ingestion Utilities..."
+            databricks workspace import_dir common_utilities/ /Shared/sandbox/ --overwrite
           fi
           
-          for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
-            if [[ $file == *".py" ]]; then 
-              echo "python file: $file"
-              pyth=true
-              cp -r $file /tmp/cu/py
-            elif [ $file == *".sql" ] && [ $file == *$ENVIRONMENT* ]; then
-              echo "sql file: $file"
-              sql=true
-              cp -r $file /tmp/cu/ddl_dml
-            fi
-          done
+          if [[ "${{ inputs.databricks_deployment_steps }}" == "ddl" ]]; then
+            echo "Deploying DDL files..."
+            databricks workspace import_dir ddl/ /Shared/sandbox/ddl_dml/ --overwrite
+          fi
+          
+          if [[ "${{ inputs.databricks_deployment_steps }}" == "dml" ]]; then
+            echo "Deploying DML files..."
+            databricks workspace import_dir dml/ /Shared/sandbox/ddl_dml/ --overwrite
+          fi
+          
+          if [[ "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
+            echo "Deploying all selected Databricks files..."
+            # Deploy Ingestion Utilities
+            databricks workspace import_dir common_utilities/ /Shared/sandbox/ --overwrite
+            # Deploy DDL files
+            databricks workspace import_dir ddl/ /Shared/sandbox/ddl_dml/ --overwrite
+            # Deploy DML files
+            databricks workspace import_dir dml/ /Shared/sandbox/ddl_dml/ --overwrite
+          fi
 
-          databricks workspace mkdirs /Shared/sandbox/ 
-          if [[ $pyth == true ]]; then
-            databricks workspace mkdirs /Shared/sandbox/utilities/
-            databricks workspace import_dir /tmp/cu/py/ /Shared/sandbox/utilities/ --overwrite
-          fi
-          if [[ $sql == true ]]; then
-            databricks workspace mkdirs /Shared/sandbox/ddl_dml/  
-            databricks workspace import_dir /tmp/cu/ddl_dml/ /Shared/sandbox/ddl_dml/ --overwrite
-          fi
-          #databricks workspace import_dir common_utilities/$ENVIRONMENT/dml/ /Shared/sandbox/ddl_dml/ --overwrite
+      - name: Clean up temporary directories
+        run: |
+          echo "Cleaning up temporary directories..."
           rm -rf /tmp/cu/py/
           rm -rf /tmp/cu/ddl_dml/
