@@ -48,23 +48,18 @@ on:
         type: string
         default: '1999-01-01'
         required: true
-
-      # Conditional Inputs for Databricks Deployment
-      publish_ingestion_utilities:
-        description: 'Publish Ingestion Utilities'
-        type: boolean
+      # Combined input for Databricks deployment steps
+      databricks_deployment_steps:
+        description: 'Select Databricks deployment steps'
+        type: string
+        options:
+          - none
+          - ingestion_utilities
+          - ddl
+          - dml
+          - all
         required: false
-        default: false
-      publish_ddl:
-        description: 'Publish DDL'
-        type: boolean
-        required: false
-        default: false
-      publish_dml:
-        description: 'Publish DML'
-        type: boolean
-        required: false
-        default: false
+        default: 'none'
 
 env:
   ENVIRONMENT: ${{ inputs.environment }}
@@ -104,9 +99,7 @@ jobs:
         with:
           environment: ${{ inputs.environment }}
           date: ${{ inputs.date }}
-          publish_ingestion_utilities: ${{ inputs.publish_ingestion_utilities }}
-          publish_ddl: ${{ inputs.publish_ddl }}
-          publish_dml: ${{ inputs.publish_dml }}
+          databricks_deployment_steps: ${{ inputs.databricks_deployment_steps }}
         secrets: inherit
 
       - name: Trigger ADF Datasets Deployment
