@@ -87,6 +87,9 @@ jobs:
         with:
           environment: ${{ inputs.environment }}
           date: ${{ inputs.date }}
+          publish_ingestion_utilities: ${{ inputs.publish_ingestion_utilities }}
+          publish_ddl: ${{ inputs.publish_ddl }}
+          publish_dml: ${{ inputs.publish_dml }}
         secrets: inherit
 
       - name: Trigger ADF Datasets Deployment
