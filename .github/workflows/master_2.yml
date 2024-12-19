@@ -31,14 +31,16 @@ on:
         description: 'Select Databricks deployment step'
         type: choice
         options:
+          - none
           - ingestion_utilities
           - ddl
           - dml
           - all
         required: false
         default: 'none'
-        # This step only appears if the user selects "true" for Databricks Deployment.
-        when: ${{ inputs.databricks_deployment == true }}
+        when:
+          # Show this dropdown only when Databricks deployment is selected
+          condition: ${{ inputs.databricks_deployment == true }}
 
       deploy_linked_service:
         description: 'Deploy ADF Linked Services'
