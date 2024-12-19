@@ -1,4 +1,4 @@
-name: Master Deployment Workflow_2
+name: Master Deployment Workflow
 
 on: 
   workflow_dispatch:
@@ -24,9 +24,24 @@ on:
           - VARICENT_SALES
         required: true
       databricks_deployment:
-        description: 'Databricks Deployment'
+        description: 'Enable Databricks Deployment?'
         type: boolean
+        required: true
+      databricks_deployment_steps:
+        description: 'Select Databricks deployment step'
+        type: choice
+        options:
+          - none
+          - ingestion_utilities
+          - ddl
+          - dml
+          - all
         required: false
+        default: 'none'
+        when:
+          # Show this dropdown only when Databricks deployment is selected
+          condition: ${{ inputs.databricks_deployment == true }}
+
       deploy_linked_service:
         description: 'Deploy ADF Linked Services'
         type: boolean
@@ -48,18 +63,6 @@ on:
         type: string
         default: '1999-01-01'
         required: true
-      # Combined input for Databricks deployment steps
-      databricks_deployment_steps:
-        description: 'Select Databricks deployment steps'
-        type: string
-        options:
-          - none
-          - ingestion_utilities
-          - ddl
-          - dml
-          - all
-        required: false
-        default: 'none'
 
 env:
   ENVIRONMENT: ${{ inputs.environment }}
