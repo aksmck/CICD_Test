@@ -12,10 +12,14 @@ on:
       databricks_deployment_steps:
         type: string
         required: true
+      function_name:
+        type: string
+        required: true
 
 env:
   ENVIRONMENT: ${{ inputs.environment }}
   DATE: ${{ inputs.date }}
+  FUNCTION_NAME: ${{ inputs.function_name }}
 
 jobs:
   deploy:
@@ -24,12 +28,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      # Step to get changed files since the specified date
       - name: Get changed files since
         id: changed-files-since
         uses: tj-actions/changed-files@v37
         with:
           since: "${{ env.DATE }}"
-          files: "common_utilities/"
+          files: |
+            # Check for changes in common/utils/ if ingestion_utilities is selected
+            ${{ contains(inputs.databricks_deployment_steps, 'ingestion_utilities') && 'common/utils/' || '' }}
+            
+            # Check for changes in dataproducts/${{ inputs.function_name }}/ddl/ if ddl is selected
+            ${{ contains(inputs.databricks_deployment_steps, 'ddl') && 'dataproducts/${{ inputs.function_name }}/ddl/' || '' }}
+            
+            # Check for changes in dataproducts/${{ inputs.function_name }}/dml/ if dml is selected
+            ${{ contains(inputs.databricks_deployment_steps, 'dml') && 'dataproducts/${{ inputs.function_name }}/dml/' || '' }}
 
       - name: Install Databricks CLI
         run: pip install databricks-cli
@@ -51,30 +64,23 @@ jobs:
         run: |
           echo "Deploying to Databricks for environment: ${{ inputs.environment }} after date: ${{ inputs.date }}"
           
-          # Logic for deploying Databricks files based on deployment step input
-          if [[ "${{ inputs.databricks_deployment_steps }}" == "ingestion_utilities" ]]; then
-            echo "Deploying Ingestion Utilities..."
-            databricks workspace import_dir common_utilities/ /Shared/sandbox/ --overwrite
+          # Deploy based on the selected step(s)
+          # Check for ingestion_utilities or all
+          if [[ "${{ inputs.databricks_deployment_steps }}" == "ingestion_utilities" || "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
+              echo "Deploying Ingestion Utilities..."
+              databricks workspace import_dir common/utils/ /Shared/sandbox/ --overwrite
           fi
           
-          if [[ "${{ inputs.databricks_deployment_steps }}" == "ddl" ]]; then
-            echo "Deploying DDL files..."
-            databricks workspace import_dir ddl/ /Shared/sandbox/ddl_dml/ --overwrite
+          # Check for ddl or all
+          if [[ "${{ inputs.databricks_deployment_steps }}" == "ddl" || "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
+              echo "Deploying DDL files..."
+              databricks workspace import_dir dataproducts/${{ inputs.function_name }}/ddl/ /Shared/sandbox/ddl_dml/ --overwrite
           fi
           
-          if [[ "${{ inputs.databricks_deployment_steps }}" == "dml" ]]; then
-            echo "Deploying DML files..."
-            databricks workspace import_dir dml/ /Shared/sandbox/ddl_dml/ --overwrite
-          fi
-          
-          if [[ "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
-            echo "Deploying all selected Databricks files..."
-            # Deploy Ingestion Utilities
-            databricks workspace import_dir common_utilities/ /Shared/sandbox/ --overwrite
-            # Deploy DDL files
-            databricks workspace import_dir ddl/ /Shared/sandbox/ddl_dml/ --overwrite
-            # Deploy DML files
-            databricks workspace import_dir dml/ /Shared/sandbox/ddl_dml/ --overwrite
+          # Check for dml or all
+          if [[ "${{ inputs.databricks_deployment_steps }}" == "dml" || "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
+              echo "Deploying DML files..."
+              databricks workspace import_dir dataproducts/${{ inputs.function_name }}/dml/ /Shared/sandbox/ddl_dml/ --overwrite
           fi
 
       - name: Clean up temporary directories
