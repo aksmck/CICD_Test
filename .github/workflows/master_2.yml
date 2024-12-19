@@ -39,7 +39,6 @@ on:
         required: false
         default: 'none'
         when:
-          # Show this dropdown only when Databricks deployment is selected
           condition: ${{ inputs.databricks_deployment == true }}
 
       deploy_linked_service:
@@ -103,6 +102,7 @@ jobs:
           environment: ${{ inputs.environment }}
           date: ${{ inputs.date }}
           databricks_deployment_steps: ${{ inputs.databricks_deployment_steps }}
+          function_name: ${{ inputs.function_name }}
         secrets: inherit
 
       - name: Trigger ADF Datasets Deployment
@@ -136,33 +136,3 @@ jobs:
           environment: ${{ inputs.environment }}
           date: ${{ inputs.date }}
         secrets: inherit
-
-  deploy_selected_functions:
-    name: Deploy Selected Data Sources
-    if: ${{ inputs.function_name != 'none' && inputs.function_name != 'all' }}
-    strategy:
-      matrix:
-        function: 
-          - ${{ inputs.function_name }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy Data Source
-        run: |
-          echo "Deploying function: ${{ matrix.function }}"
-
-  deploy_all_functions:
-    name: Deploy All Data Sources
-    if: ${{ inputs.function_name == 'all' }}
-    strategy:
-      matrix:
-        function:
-          - IQVIA_SALES
-          - SAP_FICO
-          - SAP_MASTER
-          - SFDC_CRM
-          - VARICENT_SALES
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy All Functions
-        run: |
-          echo "Deploying all selected functions: ${{ matrix.function }}"
