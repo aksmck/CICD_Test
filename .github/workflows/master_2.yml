@@ -12,8 +12,8 @@ on:
           - prod
         required: true
       function_name:
-        type: choice
         description: 'Select Data Source to deploy'
+        type: choice
         options:
           - none
           - all
@@ -48,6 +48,23 @@ on:
         type: string
         default: '1999-01-01'
         required: true
+
+      # Conditional Inputs for Databricks Deployment
+      publish_ingestion_utilities:
+        description: 'Publish Ingestion Utilities'
+        type: boolean
+        required: false
+        default: false
+      publish_ddl:
+        description: 'Publish DDL'
+        type: boolean
+        required: false
+        default: false
+      publish_dml:
+        description: 'Publish DML'
+        type: boolean
+        required: false
+        default: false
 
 env:
   ENVIRONMENT: ${{ inputs.environment }}
@@ -136,7 +153,6 @@ jobs:
       - name: Deploy Data Source
         run: |
           echo "Deploying function: ${{ matrix.function }}"
-          # Trigger specific deployments for each selected function.
 
   deploy_all_functions:
     name: Deploy All Data Sources
@@ -154,4 +170,3 @@ jobs:
       - name: Deploy All Functions
         run: |
           echo "Deploying all selected functions: ${{ matrix.function }}"
-          # Add deployment logic here for each function in the matrix
