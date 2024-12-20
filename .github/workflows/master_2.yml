@@ -45,7 +45,7 @@ on:
       deploy_datasets:
         description: 'Deploy ADF Datasets'
         type: boolean
-        required: false     
+        required: false
       deploy_common_pipelines:
         description: 'Deploy ADF Common Pipelines'
         type: boolean
@@ -54,7 +54,7 @@ on:
         description: 'Deploy ADF Triggers'
         type: boolean
         required: false
-      date: 
+      date:
         description: 'Deploy changes after a commit date in YYYY-MM-DD format (OPTIONAL)'
         type: string
         default: '1999-01-01'
@@ -96,7 +96,7 @@ jobs:
           repository: ${{ github.repository }}
           workflow: databricks.yml
           ref: ${{ github.ref }}
-          inputs:
+          inputs: |
             environment: ${{ inputs.environment }}
             date: ${{ inputs.date }}
             databricks_deployment_steps: ${{ inputs.databricks_deployment_steps }}
@@ -110,7 +110,7 @@ jobs:
           repository: ${{ github.repository }}
           workflow: adf_dataset.yml
           ref: ${{ github.ref }}
-          inputs:
+          inputs: |
             environment: ${{ inputs.environment }}
             date: ${{ inputs.date }}
 
@@ -122,7 +122,7 @@ jobs:
           repository: ${{ github.repository }}
           workflow: adf_linked_service.yml
           ref: ${{ github.ref }}
-          inputs:
+          inputs: |
             environment: ${{ inputs.environment }}
             date: ${{ inputs.date }}
 
@@ -134,7 +134,7 @@ jobs:
           repository: ${{ github.repository }}
           workflow: adf_common_pipelines.yml
           ref: ${{ github.ref }}
-          inputs:
+          inputs: |
             environment: ${{ inputs.environment }}
             date: ${{ inputs.date }}
 
@@ -146,6 +146,6 @@ jobs:
           repository: ${{ github.repository }}
           workflow: adf_triggers.yml
           ref: ${{ github.ref }}
-          inputs:
+          inputs: |
             environment: ${{ inputs.environment }}
             date: ${{ inputs.date }}
