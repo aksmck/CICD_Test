@@ -105,7 +105,7 @@ jobs:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
       - name: Trigger ADF Datasets Deployment
-        if: ${{ matrix.deploy_datasets == true }}
+        if: ${{ matrix.deploy_datasets == true && inputs.deploy_datasets == true }}
         uses: ./.github/workflows/adf_dataset.yml
         with:
           environment: ${{ inputs.environment }}
@@ -114,7 +114,7 @@ jobs:
           ADF_API_KEY: ${{ secrets.ADF_API_KEY }}
 
       - name: Trigger ADF Linked Services Deployment
-        if: ${{ matrix.deploy_linked_service == true }}
+        if: ${{ matrix.deploy_linked_service == true && inputs.deploy_linked_service == true }}
         uses: ./.github/workflows/adf_linked_service.yml
         with:
           environment: ${{ inputs.environment }}
@@ -123,7 +123,7 @@ jobs:
           ADF_API_KEY: ${{ secrets.ADF_API_KEY }}
 
       - name: Trigger ADF Common Pipelines Deployment
-        if: ${{ matrix.deploy_common_pipelines == true }}
+        if: ${{ matrix.deploy_common_pipelines == true && inputs.deploy_common_pipelines == true }}
         uses: ./.github/workflows/adf_common_pipelines.yml
         with:
           environment: ${{ inputs.environment }}
@@ -132,10 +132,11 @@ jobs:
           ADF_API_KEY: ${{ secrets.ADF_API_KEY }}
 
       - name: Trigger ADF Triggers Deployment
-        if: ${{ matrix.deploy_triggers == true }}
+        if: ${{ matrix.deploy_triggers == true && inputs.deploy_triggers == true }}
         uses: ./.github/workflows/adf_triggers.yml
         with:
           environment: ${{ inputs.environment }}
           date: ${{ inputs.date }}
         env:
           ADF_API_KEY: ${{ secrets.ADF_API_KEY }}
+          
