@@ -92,6 +92,9 @@ jobs:
         deploy_common_pipelines: [true, false]
         deploy_triggers: [true, false]
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
       - name: Trigger Databricks Deployment
         if: ${{ matrix.deploy_databricks == true && inputs.databricks_deployment == true }}
         uses: ./.github/workflows/databricks.yml
@@ -139,4 +142,3 @@ jobs:
           date: ${{ inputs.date }}
         env:
           ADF_API_KEY: ${{ secrets.ADF_API_KEY }}
-          
