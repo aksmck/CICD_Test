@@ -1,134 +1,96 @@
-name: Master Deployment Workflow_2
+name: Databricks Deployment
 
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to deploy'
-        type: choice
-        options:
-          - dev
-          - qat
-          - prod
+        type: string
         required: true
-      function_name:
-        description: 'Select Data Source to deploy'
-        type: choice
-        options:
-          - none
-          - all
-          - IQVIA_SALES
-          - SA_INSIGHTS
-          - MPB-MNC
-          - SFDC_CRM
-          - VARICENT_SALES
-        required: true
-      databricks_deployment:
-        description: 'Enable Databricks Deployment?'
-        type: boolean
+      date:
+        type: string
         required: true
       databricks_deployment_steps:
-        description: 'Select Databricks deployment step'
-        type: choice
-        options:
-          - none
-          - ingestion_utilities
-          - ddl
-          - dml
-          - all
-        required: false
-        default: 'none'
-      deploy_linked_service:
-        description: 'Deploy ADF Linked Services'
-        type: boolean
-        required: false
-      deploy_datasets:
-        description: 'Deploy ADF Datasets'
-        type: boolean
-        required: false
-      deploy_common_pipelines:
-        description: 'Deploy ADF Common Pipelines'
-        type: boolean
-        required: false
-      deploy_triggers:
-        description: 'Deploy ADF Triggers'
-        type: boolean
-        required: false
-      date:
-        description: 'Deploy changes after a commit date in YYYY-MM-DD format (OPTIONAL)'
         type: string
-        default: '1999-01-01'
+        required: true
+      function_name:
+        type: string
         required: true
 
 env:
   ENVIRONMENT: ${{ inputs.environment }}
   DATE: ${{ inputs.date }}
+  FUNCTION_NAME: ${{ inputs.function_name }}
 
 jobs:
-  validate_inputs:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Validate Date Format
-        run: |
-          if ! [[ "${{ inputs.date }}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
-            echo "Invalid date format. Please use YYYY-MM-DD."
-            exit 1
-          fi
-      - name: Validate Function Name
-        run: |
-          if [[ "${{ inputs.function_name }}" == "none" && ( "${{ inputs.databricks_deployment }}" == "true" || "${{ inputs.deploy_datasets }}" == "true" || "${{ inputs.deploy_linked_service }}" == "true" || "${{ inputs.deploy_common_pipelines }}" == "true" || "${{ inputs.deploy_triggers }}" == "true" ) ]]; then
-            echo "If 'function_name' is 'none', no deployment options should be selected."
-            exit 1
-          fi
-
-  trigger_workflows:
-    name: Trigger Deployment Workflows
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
+      - name: Checkout code
         uses: actions/checkout@v2
 
-      # Trigger Databricks Deployment
-      - name: Trigger Databricks Deployment
-        if: ${{ inputs.databricks_deployment == true }}
-        run: |
-          curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d '{"ref": "refs/heads/main", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "databricks_deployment_steps": "${{ inputs.databricks_deployment_steps }}", "function_name": "${{ inputs.function_name }}"}}' \
-            https://api.github.com/repos/${{ github.repository }}/actions/workflows/databricks.yml/dispatches
+      # Step to get changed files since the specified date
+      - name: Get changed files since
+        id: changed-files-since
+        uses: tj-actions/changed-files@v37
+        with:
+          since: "${{ env.DATE }}"
+          files: |
+            # Check for changes in common/utils/ if ingestion_utilities is selected
+            ${{ contains(inputs.databricks_deployment_steps, 'ingestion_utilities') && 'common/utils/' || '' }}
+            
+            # Check for changes in dataproducts/${{ inputs.function_name }}/ddl/ if ddl is selected
+            ${{ contains(inputs.databricks_deployment_steps, 'ddl') && 'dataproducts/${{ inputs.function_name }}/ddl/' || '' }}
+            
+            # Check for changes in dataproducts/${{ inputs.function_name }}/dml/ if dml is selected
+            ${{ contains(inputs.databricks_deployment_steps, 'dml') && 'dataproducts/${{ inputs.function_name }}/dml/' || '' }}
 
-      # Trigger ADF Datasets Deployment
-      - name: Trigger ADF Datasets Deployment
-        if: ${{ inputs.deploy_datasets == true }}
-        run: |
-          curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d '{"ref": "refs/heads/main", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}"}}' \
-            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataset.yml/dispatches
+      - name: Install Databricks CLI
+        run: pip install databricks-cli
 
-      # Trigger ADF Linked Services Deployment
-      - name: Trigger ADF Linked Services Deployment
-        if: ${{ inputs.deploy_linked_service == true }}
+      # Explicitly configure the Databricks CLI using environment variables
+      - name: Configure Databricks CLI
         run: |
-          curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d '{"ref": "refs/heads/main", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}"}}' \
-            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_linked_service.yml/dispatches
+          if [ "${{ inputs.environment }}" == 'dev' ]; then
+            export DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST_DEV }}
+            export DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN_DEV }}
+          elif [ "${{ inputs.environment }}" == 'qat' ]; then
+            export DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST_QAT }}
+            export DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN_QAT }}
+          elif [ "${{ inputs.environment }}" == 'prod' ]; then
+            export DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST_PROD }}
+            export DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN_PROD }}
+          fi
+          # Ensure the CLI can use these environment variables to authenticate
+          databricks configure --host $DATABRICKS_HOST --token $DATABRICKS_TOKEN
 
-      # Trigger ADF Common Pipelines Deployment
-      - name: Trigger ADF Common Pipelines Deployment
-        if: ${{ inputs.deploy_common_pipelines == true }}
+      - name: Deploy Databricks Files
         run: |
-          curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d '{"ref": "refs/heads/main", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}"}}' \
-            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_common_pipelines.yml/dispatches
+          echo "Deploying to Databricks for environment: ${{ inputs.environment }} after date: ${{ inputs.date }}"
 
-      # Trigger ADF Triggers Deployment
-      - name: Trigger ADF Triggers Deployment
-        if: ${{ inputs.deploy_triggers == true }}
+          # Set the target path base
+          BASE_PATH="/Workspace/Users/s2ek20b@mckesson.com/CICD_TEST"
+
+          # Deploy based on the selected step(s)
+          # Check for ingestion_utilities or all
+          if [[ "${{ inputs.databricks_deployment_steps }}" == "ingestion_utilities" || "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
+              echo "Deploying Ingestion Utilities..."
+              databricks workspace import_dir "common/utils/" "${BASE_PATH}/common/utils/" --overwrite
+          fi
+          
+          # Check for ddl or all
+          if [[ "${{ inputs.databricks_deployment_steps }}" == "ddl" || "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
+              echo "Deploying DDL files..."
+              databricks workspace import_dir "dataproducts/${{ inputs.function_name }}/ddl/" "${BASE_PATH}/dataproducts/${{ inputs.function_name }}/ddl/" --overwrite
+          fi
+          
+          # Check for dml or all
+          if [[ "${{ inputs.databricks_deployment_steps }}" == "dml" || "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
+              echo "Deploying DML files..."
+              databricks workspace import_dir "dataproducts/${{ inputs.function_name }}/dml/" "${BASE_PATH}/dataproducts/${{ inputs.function_name }}/dml/" --overwrite
+          fi
+
+      - name: Clean up temporary directories
         run: |
-          curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d '{"ref": "refs/heads/main", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}"}}' \
-            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_triggers.yml/dispatches
+          echo "Cleaning up temporary directories..."
+          rm -rf /tmp/cu/py/
+          rm -rf /tmp/cu/ddl_dml/
