@@ -47,6 +47,7 @@ jobs:
       - name: Install Databricks CLI
         run: pip install databricks-cli
 
+      # Setup Databricks environment variables based on the selected environment
       - name: Setup Databricks environment
         run: |
           if [ "${{ inputs.environment }}" == 'dev' ]; then 
