@@ -63,24 +63,27 @@ jobs:
       - name: Deploy Databricks Files
         run: |
           echo "Deploying to Databricks for environment: ${{ inputs.environment }} after date: ${{ inputs.date }}"
-          
+
+          # Set the target path base
+          BASE_PATH="/Workspace/Users/s2ek20b@mckesson.com/CICD_TEST"
+
           # Deploy based on the selected step(s)
           # Check for ingestion_utilities or all
           if [[ "${{ inputs.databricks_deployment_steps }}" == "ingestion_utilities" || "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
               echo "Deploying Ingestion Utilities..."
-              databricks workspace import_dir common/utils/ /Shared/sandbox/ --overwrite
+              databricks workspace import_dir common/utils/ ${BASE_PATH}/common/utils/ --overwrite
           fi
           
           # Check for ddl or all
           if [[ "${{ inputs.databricks_deployment_steps }}" == "ddl" || "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
               echo "Deploying DDL files..."
-              databricks workspace import_dir dataproducts/${{ inputs.function_name }}/ddl/ /Shared/sandbox/ddl_dml/ --overwrite
+              databricks workspace import_dir dataproducts/${{ inputs.function_name }}/ddl/ ${BASE_PATH}/dataproducts/${{ inputs.function_name }}/ddl/ --overwrite
           fi
           
           # Check for dml or all
           if [[ "${{ inputs.databricks_deployment_steps }}" == "dml" || "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
               echo "Deploying DML files..."
-              databricks workspace import_dir dataproducts/${{ inputs.function_name }}/dml/ /Shared/sandbox/ddl_dml/ --overwrite
+              databricks workspace import_dir dataproducts/${{ inputs.function_name }}/dml/ ${BASE_PATH}/dataproducts/${{ inputs.function_name }}/dml/ --overwrite
           fi
 
       - name: Clean up temporary directories
