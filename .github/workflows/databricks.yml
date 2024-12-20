@@ -1,7 +1,7 @@
 name: Databricks Deployment
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       environment:
         type: string
@@ -91,4 +91,3 @@ jobs:
           echo "Cleaning up temporary directories..."
           rm -rf /tmp/cu/py/
           rm -rf /tmp/cu/ddl_dml/
-          
