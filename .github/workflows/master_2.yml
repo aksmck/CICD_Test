@@ -91,61 +91,41 @@ jobs:
       # Trigger Databricks Deployment
       - name: Trigger Databricks Deployment
         if: ${{ inputs.databricks_deployment == true }}
-        uses: peter-evans/workflow-dispatch@v1
+        uses: ./.github/workflows/databricks.yml
         with:
-          repository: ${{ github.repository }}
-          workflow: databricks.yml
-          ref: ${{ github.ref }}
-          inputs: |
-            environment: ${{ inputs.environment }}
-            date: ${{ inputs.date }}
-            databricks_deployment_steps: ${{ inputs.databricks_deployment_steps }}
-            function_name: ${{ inputs.function_name }}
+          environment: ${{ inputs.environment }}
+          date: ${{ inputs.date }}
+          databricks_deployment_steps: ${{ inputs.databricks_deployment_steps }}
+          function_name: ${{ inputs.function_name }}
 
       # Trigger ADF Datasets Deployment
       - name: Trigger ADF Datasets Deployment
         if: ${{ inputs.deploy_datasets == true }}
-        uses: peter-evans/workflow-dispatch@v1
+        uses: ./.github/workflows/adf_dataset.yml
         with:
-          repository: ${{ github.repository }}
-          workflow: adf_dataset.yml
-          ref: ${{ github.ref }}
-          inputs: |
-            environment: ${{ inputs.environment }}
-            date: ${{ inputs.date }}
+          environment: ${{ inputs.environment }}
+          date: ${{ inputs.date }}
 
       # Trigger ADF Linked Services Deployment
       - name: Trigger ADF Linked Services Deployment
         if: ${{ inputs.deploy_linked_service == true }}
-        uses: peter-evans/workflow-dispatch@v1
+        uses: ./.github/workflows/adf_linked_service.yml
         with:
-          repository: ${{ github.repository }}
-          workflow: adf_linked_service.yml
-          ref: ${{ github.ref }}
-          inputs: |
-            environment: ${{ inputs.environment }}
-            date: ${{ inputs.date }}
+          environment: ${{ inputs.environment }}
+          date: ${{ inputs.date }}
 
       # Trigger ADF Common Pipelines Deployment
       - name: Trigger ADF Common Pipelines Deployment
         if: ${{ inputs.deploy_common_pipelines == true }}
-        uses: peter-evans/workflow-dispatch@v1
+        uses: ./.github/workflows/adf_common_pipelines.yml
         with:
-          repository: ${{ github.repository }}
-          workflow: adf_common_pipelines.yml
-          ref: ${{ github.ref }}
-          inputs: |
-            environment: ${{ inputs.environment }}
-            date: ${{ inputs.date }}
+          environment: ${{ inputs.environment }}
+          date: ${{ inputs.date }}
 
       # Trigger ADF Triggers Deployment
       - name: Trigger ADF Triggers Deployment
         if: ${{ inputs.deploy_triggers == true }}
-        uses: peter-evans/workflow-dispatch@v1
+        uses: ./.github/workflows/adf_triggers.yml
         with:
-          repository: ${{ github.repository }}
-          workflow: adf_triggers.yml
-          ref: ${{ github.ref }}
-          inputs: |
-            environment: ${{ inputs.environment }}
-            date: ${{ inputs.date }}
+          environment: ${{ inputs.environment }}
+          date: ${{ inputs.date }}
