@@ -91,41 +91,44 @@ jobs:
       # Trigger Databricks Deployment
       - name: Trigger Databricks Deployment
         if: ${{ inputs.databricks_deployment == true }}
-        uses: ./.github/workflows/databricks.yml
-        with:
-          environment: ${{ inputs.environment }}
-          date: ${{ inputs.date }}
-          databricks_deployment_steps: ${{ inputs.databricks_deployment_steps }}
-          function_name: ${{ inputs.function_name }}
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d '{"ref": "refs/heads/main", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "databricks_deployment_steps": "${{ inputs.databricks_deployment_steps }}", "function_name": "${{ inputs.function_name }}"}}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/databricks.yml/dispatches
 
       # Trigger ADF Datasets Deployment
       - name: Trigger ADF Datasets Deployment
         if: ${{ inputs.deploy_datasets == true }}
-        uses: ./.github/workflows/adf_dataset.yml
-        with:
-          environment: ${{ inputs.environment }}
-          date: ${{ inputs.date }}
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d '{"ref": "refs/heads/main", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}"}}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataset.yml/dispatches
 
       # Trigger ADF Linked Services Deployment
       - name: Trigger ADF Linked Services Deployment
         if: ${{ inputs.deploy_linked_service == true }}
-        uses: ./.github/workflows/adf_linked_service.yml
-        with:
-          environment: ${{ inputs.environment }}
-          date: ${{ inputs.date }}
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d '{"ref": "refs/heads/main", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}"}}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_linked_service.yml/dispatches
 
       # Trigger ADF Common Pipelines Deployment
       - name: Trigger ADF Common Pipelines Deployment
         if: ${{ inputs.deploy_common_pipelines == true }}
-        uses: ./.github/workflows/adf_common_pipelines.yml
-        with:
-          environment: ${{ inputs.environment }}
-          date: ${{ inputs.date }}
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d '{"ref": "refs/heads/main", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}"}}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_common_pipelines.yml/dispatches
 
       # Trigger ADF Triggers Deployment
       - name: Trigger ADF Triggers Deployment
         if: ${{ inputs.deploy_triggers == true }}
-        uses: ./.github/workflows/adf_triggers.yml
-        with:
-          environment: ${{ inputs.environment }}
-          date: ${{ inputs.date }}
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d '{"ref": "refs/heads/main", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}"}}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_triggers.yml/dispatches
