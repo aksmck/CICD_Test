@@ -44,8 +44,17 @@ jobs:
             # Check for changes in dataproducts/${{ inputs.function_name }}/dml/ if dml is selected
             ${{ contains(inputs.databricks_deployment_steps, 'dml') && 'dataproducts/${{ inputs.function_name }}/dml/' || '' }}
 
-      - name: Install Databricks CLI
-        run: pip install databricks-cli
+      - name: Uninstall old Databricks CLI if exists
+        run: |
+          pip uninstall -y databricks-cli
+
+      - name: Install Databricks CLI (latest version)
+        run: |
+          pip install --upgrade databricks-cli
+
+      - name: Check Databricks CLI version
+        run: |
+          databricks --version
 
       # Set Databricks environment variables for authentication (no need to run databricks configure)
       - name: Setup Databricks environment
@@ -60,6 +69,8 @@ jobs:
             export DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST_PROD }}
             export DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN_PROD }}
           fi
+          echo "DATABRICKS_HOST=${DATABRICKS_HOST}"  # For debugging
+          echo "DATABRICKS_TOKEN=${DATABRICKS_TOKEN}"  # For debugging
 
       - name: Deploy Databricks Files
         run: |
