@@ -38,9 +38,6 @@ on:
           - all
         required: false
         default: 'none'
-        when:
-          condition: ${{ inputs.databricks_deployment == true }}
-
       deploy_linked_service:
         description: 'Deploy ADF Linked Services'
         type: boolean
@@ -96,14 +93,16 @@ jobs:
         deploy_triggers: [true, false]
     steps:
       - name: Trigger Databricks Deployment
-        if: ${{ matrix.deploy_databricks == true }}
+        if: ${{ matrix.deploy_databricks == true && inputs.databricks_deployment == true }}
         uses: ./.github/workflows/databricks.yml
         with:
           environment: ${{ inputs.environment }}
           date: ${{ inputs.date }}
           databricks_deployment_steps: ${{ inputs.databricks_deployment_steps }}
           function_name: ${{ inputs.function_name }}
-        secrets: inherit
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
 
       - name: Trigger ADF Datasets Deployment
         if: ${{ matrix.deploy_datasets == true }}
@@ -111,7 +110,8 @@ jobs:
         with:
           environment: ${{ inputs.environment }}
           date: ${{ inputs.date }}
-        secrets: inherit
+        env:
+          ADF_API_KEY: ${{ secrets.ADF_API_KEY }}
 
       - name: Trigger ADF Linked Services Deployment
         if: ${{ matrix.deploy_linked_service == true }}
@@ -119,7 +119,8 @@ jobs:
         with:
           environment: ${{ inputs.environment }}
           date: ${{ inputs.date }}
-        secrets: inherit
+        env:
+          ADF_API_KEY: ${{ secrets.ADF_API_KEY }}
 
       - name: Trigger ADF Common Pipelines Deployment
         if: ${{ matrix.deploy_common_pipelines == true }}
@@ -127,7 +128,8 @@ jobs:
         with:
           environment: ${{ inputs.environment }}
           date: ${{ inputs.date }}
-        secrets: inherit
+        env:
+          ADF_API_KEY: ${{ secrets.ADF_API_KEY }}
 
       - name: Trigger ADF Triggers Deployment
         if: ${{ matrix.deploy_triggers == true }}
@@ -135,4 +137,5 @@ jobs:
         with:
           environment: ${{ inputs.environment }}
           date: ${{ inputs.date }}
-        secrets: inherit
+        env:
+          ADF_API_KEY: ${{ secrets.ADF_API_KEY }}
