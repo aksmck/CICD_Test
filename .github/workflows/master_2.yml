@@ -1,6 +1,6 @@
 name: Master Deployment Workflow_2
 
-on: 
+on:
   workflow_dispatch:
     inputs:
       environment:
@@ -91,52 +91,61 @@ jobs:
       # Trigger Databricks Deployment
       - name: Trigger Databricks Deployment
         if: ${{ inputs.databricks_deployment == true }}
-        uses: ./.github/workflows/databricks.yml
+        uses: peter-evans/workflow-dispatch@v1
         with:
-          environment: ${{ inputs.environment }}
-          date: ${{ inputs.date }}
-          databricks_deployment_steps: ${{ inputs.databricks_deployment_steps }}
-          function_name: ${{ inputs.function_name }}
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          repository: ${{ github.repository }}
+          workflow: databricks.yml
+          ref: ${{ github.ref }}
+          inputs:
+            environment: ${{ inputs.environment }}
+            date: ${{ inputs.date }}
+            databricks_deployment_steps: ${{ inputs.databricks_deployment_steps }}
+            function_name: ${{ inputs.function_name }}
 
       # Trigger ADF Datasets Deployment
       - name: Trigger ADF Datasets Deployment
         if: ${{ inputs.deploy_datasets == true }}
-        uses: ./.github/workflows/adf_dataset.yml
+        uses: peter-evans/workflow-dispatch@v1
         with:
-          environment: ${{ inputs.environment }}
-          date: ${{ inputs.date }}
-        env:
-          ADF_API_KEY: ${{ secrets.ADF_API_KEY }}
+          repository: ${{ github.repository }}
+          workflow: adf_dataset.yml
+          ref: ${{ github.ref }}
+          inputs:
+            environment: ${{ inputs.environment }}
+            date: ${{ inputs.date }}
 
       # Trigger ADF Linked Services Deployment
       - name: Trigger ADF Linked Services Deployment
         if: ${{ inputs.deploy_linked_service == true }}
-        uses: ./.github/workflows/adf_linked_service.yml
+        uses: peter-evans/workflow-dispatch@v1
         with:
-          environment: ${{ inputs.environment }}
-          date: ${{ inputs.date }}
-        env:
-          ADF_API_KEY: ${{ secrets.ADF_API_KEY }}
+          repository: ${{ github.repository }}
+          workflow: adf_linked_service.yml
+          ref: ${{ github.ref }}
+          inputs:
+            environment: ${{ inputs.environment }}
+            date: ${{ inputs.date }}
 
       # Trigger ADF Common Pipelines Deployment
       - name: Trigger ADF Common Pipelines Deployment
         if: ${{ inputs.deploy_common_pipelines == true }}
-        uses: ./.github/workflows/adf_common_pipelines.yml
+        uses: peter-evans/workflow-dispatch@v1
         with:
-          environment: ${{ inputs.environment }}
-          date: ${{ inputs.date }}
-        env:
-          ADF_API_KEY: ${{ secrets.ADF_API_KEY }}
+          repository: ${{ github.repository }}
+          workflow: adf_common_pipelines.yml
+          ref: ${{ github.ref }}
+          inputs:
+            environment: ${{ inputs.environment }}
+            date: ${{ inputs.date }}
 
       # Trigger ADF Triggers Deployment
       - name: Trigger ADF Triggers Deployment
         if: ${{ inputs.deploy_triggers == true }}
-        uses: ./.github/workflows/adf_triggers.yml
+        uses: peter-evans/workflow-dispatch@v1
         with:
-          environment: ${{ inputs.environment }}
-          date: ${{ inputs.date }}
-        env:
-          ADF_API_KEY: ${{ secrets.ADF_API_KEY }}
+          repository: ${{ github.repository }}
+          workflow: adf_triggers.yml
+          ref: ${{ github.ref }}
+          inputs:
+            environment: ${{ inputs.environment }}
+            date: ${{ inputs.date }}
