@@ -47,19 +47,21 @@ jobs:
       - name: Install Databricks CLI
         run: pip install databricks-cli
 
-      # Setup Databricks environment variables based on the selected environment
-      - name: Setup Databricks environment
+      # Explicitly configure the Databricks CLI using environment variables
+      - name: Configure Databricks CLI
         run: |
-          if [ "${{ inputs.environment }}" == 'dev' ]; then 
+          if [ "${{ inputs.environment }}" == 'dev' ]; then
             export DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST_DEV }}
             export DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN_DEV }}
           elif [ "${{ inputs.environment }}" == 'qat' ]; then
-            export DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST_QAT }}
-            export DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN_QAT }}
+            export DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST_DEV }}
+            export DATABRICKS_TOKEN=${{ secrets.DATABRICKS_HOST_DEV }}
           elif [ "${{ inputs.environment }}" == 'prod' ]; then
-            export DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST_PROD }}
-            export DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN_PROD }}
+            export DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST_DEV }}
+            export DATABRICKS_TOKEN=${{ secrets.DATABRICKS_HOST_DEV }}
           fi
+          # Ensure the CLI can use these environment variables to authenticate
+          databricks configure --host $DATABRICKS_HOST --token $DATABRICKS_TOKEN
 
       - name: Deploy Databricks Files
         run: |
