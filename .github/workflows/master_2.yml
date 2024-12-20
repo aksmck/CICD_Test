@@ -18,8 +18,8 @@ on:
           - none
           - all
           - IQVIA_SALES
-          - SAP_FICO
-          - SAP_MASTER
+          - SA_INSIGHTS
+          - MPB-MNC
           - SFDC_CRM
           - VARICENT_SALES
         required: true
