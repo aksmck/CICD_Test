@@ -48,13 +48,13 @@ jobs:
         run: |
           pip uninstall -y databricks-cli
 
-      - name: Install Databricks CLI (latest version)
+      - name: Install Databricks CLI (v2)
         run: |
-          pip install --upgrade databricks-cli
+          pip install --upgrade databricks-cli==2.0.0
 
       - name: Check Databricks CLI version
         run: |
-          databricks --version
+          databricks --version  # This should print the correct version (v2.0.0 or later)
 
       # Set Databricks environment variables for authentication (no need to run databricks configure)
       - name: Setup Databricks environment
