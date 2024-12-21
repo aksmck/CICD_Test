@@ -105,7 +105,7 @@ jobs:
           
       - name: Validate Linked Services and Datasets Deployment
         run: |
-          if { { inputs.deploy_linked_service } == "true" || { { inputs.deploy_datasets } == "true" ]; then
+          if [[ "${{ inputs.deploy_linked_service }}" == "true" || "${{ inputs.deploy_datasets }}" == "true" ]]; then
             if [[ "${{ inputs.function_name }}" == "none" ]]; then
               echo "If deploying linked services or datasets, a valid function name must be provided."
               exit 1
