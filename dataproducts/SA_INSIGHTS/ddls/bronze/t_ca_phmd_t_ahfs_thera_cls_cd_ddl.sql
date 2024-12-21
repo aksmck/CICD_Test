@@ -1,4 +1,4 @@
-CREATE TABLE $$unity_catalog_name.$$schema_name.$$delta_table_name (
+CREATE TABLE IF NOT EXISTS $$unity_catalog_name.$$schema_name.$$delta_table_name (
   THERA_CLS_CD STRING COMMENT 'Therapeutic Class Code',
   THERA_CLS_DSCR STRING COMMENT 'Therapeutic Class Description',
   _rescued_data STRING,
