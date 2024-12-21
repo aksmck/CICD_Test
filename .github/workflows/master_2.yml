@@ -74,11 +74,42 @@ jobs:
             echo "Invalid date format. Please use YYYY-MM-DD."
             exit 1
           fi
+          
+      - name: Validate Future Date
+        run: |
+          if [[ "${{ inputs.date }}" > "$(date +%Y-%m-%d)" ]]; then
+            echo "The specified date is in the future. Please provide a valid past date."
+            exit 1
+          fi
+          
+      - name: Validate Environment Selection
+        run: |
+          if [[ -z "${{ inputs.environment }}" ]]; then
+            echo "Environment selection cannot be empty."
+            exit 1
+          fi
+          
       - name: Validate Function Name
         run: |
           if [[ "${{ inputs.function_name }}" == "none" && ( "${{ inputs.databricks_deployment }}" == "true" || "${{ inputs.deploy_datasets }}" == "true" || "${{ inputs.deploy_linked_service }}" == "true" || "${{ inputs.deploy_common_pipelines }}" == "true" || "${{ inputs.deploy_triggers }}" == "true" ) ]]; then
             echo "If 'function_name' is 'none', no deployment options should be selected."
             exit 1
+          fi
+          
+      - name: Validate Databricks Deployment Steps
+        run: |
+          if [[ "${{ inputs.databricks_deployment }}" == "true" && "${{ inputs.databricks_deployment_steps }}" == "none" ]]; then
+            echo "If Databricks deployment is enabled, at least one deployment step must be selected."
+            exit 1
+          fi
+          
+      - name: Validate Linked Services and Datasets Deployment
+        run: |
+          if { { inputs.deploy_linked_service } == "true" || { { inputs.deploy_datasets } == "true" ]; then
+            if [[ "${{ inputs.function_name }}" == "none" ]]; then
+              echo "If deploying linked services or datasets, a valid function name must be provided."
+              exit 1
+            fi
           fi
 
   trigger_workflows:
