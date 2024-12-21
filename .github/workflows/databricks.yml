@@ -44,22 +44,22 @@ jobs:
             # Check for changes in dataproducts/${{ inputs.function_name }}/dml/ if dml is selected
             ${{ contains(inputs.databricks_deployment_steps, 'dml') && 'dataproducts/${{ inputs.function_name }}/dml/' || '' }}
 
-      # Uninstall the old version of Databricks CLI, if present
+      # Uninstall the old version of Databricks CLI, if any
       - name: Uninstall old Databricks CLI if exists
         run: |
-          pip uninstall -y databricks-cli || true  # Uninstall any previous versions
+          pip uninstall -y databricks-cli || true  # Uninstall old versions, avoid errors if it's not installed
 
-      # Install the latest Databricks CLI (v2.x)
-      - name: Install new Databricks CLI (v2.x)
+      # Install the correct Databricks CLI (v2.x)
+      - name: Install Databricks CLI (v2.x)
         run: |
-          pip install --upgrade databricks-cli  # Install latest version of Databricks CLI
+          pip install --upgrade databricks-cli  # Install the latest version (v2.x)
 
-      # Check the Databricks CLI version
+      # Check the installed Databricks CLI version
       - name: Check Databricks CLI version
         run: |
           databricks --version  # This should print the new CLI version (v2.x)
 
-      # Set up Databricks environment variables for authentication
+      # Set up Databricks environment variables for authentication (no need for databricks configure)
       - name: Setup Databricks environment
         run: |
           if [ "${{ inputs.environment }}" == 'dev' ]; then
@@ -72,8 +72,8 @@ jobs:
             export DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST_PROD }}
             export DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN_PROD }}
           fi
-          echo "DATABRICKS_HOST=${DATABRICKS_HOST}"  # For debugging purposes
-          echo "DATABRICKS_TOKEN=${DATABRICKS_TOKEN}"  # For debugging purposes
+          echo "DATABRICKS_HOST=${DATABRICKS_HOST}"  # For debugging (optional, can be removed)
+          echo "DATABRICKS_TOKEN=${DATABRICKS_TOKEN}"  # For debugging (optional, can be removed)
 
       # Deploy Databricks Files based on the selected deployment steps
       - name: Deploy Databricks Files
