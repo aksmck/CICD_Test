@@ -23,6 +23,11 @@ on:
           - SFDC_CRM
           - VARICENT_SALES
         required: true
+      date:
+        description: 'Deploy changes after a commit date in YYYY-MM-DD format (OPTIONAL)'
+        type: string
+        default: '1999-01-01'
+        required: true
       databricks_deployment:
         description: 'Enable Databricks Deployment?'
         type: boolean
@@ -38,20 +43,8 @@ on:
           - all
         required: false
         default: 'none'
-      deploy_linked_service:
-        description: 'Deploy ADF Linked Services'
-        type: boolean
-        required: false
-      deploy_datasets:
-        description: 'Deploy ADF Datasets'
-        type: boolean
-        required: false
       deploy_common_pipelines:
         description: 'Deploy ADF Common Pipelines'
-        type: boolean
-        required: false
-      deploy_triggers:
-        description: 'Deploy ADF Triggers'
         type: boolean
         required: false
       common_pipelines_deployment_steps:
@@ -64,11 +57,18 @@ on:
           - gold
         required: false
         default: 'none'
-      date:
-        description: 'Deploy changes after a commit date in YYYY-MM-DD format (OPTIONAL)'
-        type: string
-        default: '1999-01-01'
-        required: true
+      deploy_linked_service:
+        description: 'Deploy ADF Linked Services'
+        type: boolean
+        required: false
+      deploy_datasets:
+        description: 'Deploy ADF Datasets'
+        type: boolean
+        required: false
+      deploy_triggers:
+        description: 'Deploy ADF Triggers'
+        type: boolean
+        required: false
 
 env:
   ENVIRONMENT: ${{ inputs.environment }}
@@ -146,6 +146,15 @@ jobs:
             -d '{"ref": "refs/heads/main", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "databricks_deployment_steps": "${{ inputs.databricks_deployment_steps }}", "function_name": "${{ inputs.function_name }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/databricks.yml/dispatches
 
+      # Trigger ADF Common Pipelines Deployment
+      - name: Trigger ADF Common Pipelines Deployment
+        if: ${{ inputs.deploy_common_pipelines == true }}
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d '{"ref": "refs/heads/main", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "common_pipelines_deployment_steps": "${{ inputs.common_pipelines_deployment_steps }}"}}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_common_pipelines.yml/dispatches
+
       # Trigger ADF Datasets Deployment
       - name: Trigger ADF Datasets Deployment
         if: ${{ inputs.deploy_datasets == true }}
@@ -163,15 +172,6 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/main", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_linked_service.yml/dispatches
-
-      # Trigger ADF Common Pipelines Deployment
-      - name: Trigger ADF Common Pipelines Deployment
-        if: ${{ inputs.deploy_common_pipelines == true }}
-        run: |
-          curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d '{"ref": "refs/heads/main", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "common_pipelines_deployment_steps": "${{ inputs.common_pipelines_deployment_steps }}"}}' \
-            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_common_pipelines.yml/dispatches
 
       # Trigger ADF Triggers Deployment
       - name: Trigger ADF Triggers Deployment
