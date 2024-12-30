@@ -43,12 +43,12 @@ on:
           - all
         required: false
         default: 'none'
-      deploy_common_pipelines:
-        description: 'Deploy ADF Common Pipelines'
+      deploy_adf_pipelines:
+        description: 'Enable ADF Pipelines Deployment?'
         type: boolean
         required: false
-      common_pipelines_deployment_steps:
-        description: 'Select ADF Common Pipelines deployment step'
+      adf_pipelines_deployment_steps:
+        description: 'Select ADF Pipelines deployment step'
         type: choice
         options:
           - none
@@ -101,7 +101,7 @@ jobs:
           
       - name: Validate Function Name
         run: |
-          if [[ "${{ inputs.function_name }}" == "none" && ( "${{ inputs.databricks_deployment }}" == "true" || "${{ inputs.deploy_datasets }}" == "true" || "${{ inputs.deploy_linked_service }}" == "true" || "${{ inputs.deploy_common_pipelines }}" == "true" || "${{ inputs.deploy_triggers }}" == "true" ) ]]; then
+          if [[ "${{ inputs.function_name }}" == "none" && ( "${{ inputs.databricks_deployment }}" == "true" || "${{ inputs.deploy_datasets }}" == "true" || "${{ inputs.deploy_linked_service }}" == "true" || "${{ inputs.deploy_adf_pipelines }}" == "true" || "${{ inputs.deploy_triggers }}" == "true" ) ]]; then
             echo "If 'function_name' is 'none', no deployment options should be selected."
             exit 1
           fi
@@ -122,11 +122,11 @@ jobs:
             fi
           fi
           
-      # Validation to ensure that if ADF Common Pipelines is not selected, no Bronze/Silver/Gold steps are selected
-      - name: Validate ADF Common Pipelines Step Selection
+      # Validation to ensure that if ADF Pipelines is not selected, no Bronze/Silver/Gold steps are selected
+      - name: Validate ADF Pipelines Step Selection
         run: |
-          if [[ "${{ inputs.deploy_common_pipelines }}" == "false" && "${{ inputs.common_pipelines_deployment_steps }}" != "none" ]]; then
-            echo "If 'deploy_common_pipelines' is not selected, no deployment steps (bronze, silver, gold) should be selected."
+          if [[ "${{ inputs.deploy_adf_pipelines }}" == "false" && "${{ inputs.adf_pipelines_deployment_steps }}" != "none" ]]; then
+            echo "If 'deploy_adf_pipelines' is not selected, no deployment steps (bronze, silver, gold) should be selected."
             exit 1
           fi
 
@@ -146,14 +146,14 @@ jobs:
             -d '{"ref": "refs/heads/main", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "databricks_deployment_steps": "${{ inputs.databricks_deployment_steps }}", "function_name": "${{ inputs.function_name }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/databricks.yml/dispatches
 
-      # Trigger ADF Common Pipelines Deployment
-      - name: Trigger ADF Common Pipelines Deployment
-        if: ${{ inputs.deploy_common_pipelines == true }}
+      # Trigger ADF Pipelines Deployment
+      - name: Trigger ADF Pipelines Deployment
+        if: ${{ inputs.deploy_adf_pipelines == true }}
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d '{"ref": "refs/heads/main", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "common_pipelines_deployment_steps": "${{ inputs.common_pipelines_deployment_steps }}"}}' \
-            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_common_pipelines.yml/dispatches
+            -d '{"ref": "refs/heads/main", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "adf_pipelines_deployment_steps": "${{ inputs.adf_pipelines_deployment_steps }}"}}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_pipelines.yml/dispatches
 
       # Trigger ADF Datasets Deployment
       - name: Trigger ADF Datasets Deployment
