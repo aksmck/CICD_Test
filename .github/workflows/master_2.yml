@@ -12,13 +12,8 @@ on:
           - prod
         required: true
       function_name:
-        description: 'Select Data Source to deploy'
-        type: choice
-        options:
-          - none
-          - all
-          - MPB-MNC
-          - SA_INSIGHTS
+        description: 'Enter the Data Source to deploy (Project folder name from data products) - Example: "MPB-MNC"'
+        type: string
         required: true
       date:
         description: 'Deploy changes after a commit date in YYYY-MM-DD format (OPTIONAL)'
@@ -100,8 +95,8 @@ jobs:
           
       - name: Validate Function Name
         run: |
-          if [[ "${{ inputs.function_name }}" == "none" && ( "${{ inputs.databricks_deployment }}" == "true" || "${{ inputs.deploy_datasets }}" == "true" || "${{ inputs.deploy_linked_service }}" == "true" || "${{ inputs.deploy_adf_pipelines }}" == "true" || "${{ inputs.deploy_triggers }}" == "true" ) ]]; then
-            echo "If 'function_name' is 'none', no deployment options should be selected."
+          if [[ -z "${{ inputs.function_name }}" ]]; then
+            echo "Data source (function_name) cannot be empty."
             exit 1
           fi
           
