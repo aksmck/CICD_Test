@@ -17,11 +17,8 @@ on:
         options:
           - none
           - all
-          - IQVIA_SALES
-          - SA_INSIGHTS
           - MPB-MNC
-          - SFDC_CRM
-          - VARICENT_SALES
+          - SA_INSIGHTS
         required: true
       date:
         description: 'Deploy changes after a commit date in YYYY-MM-DD format (OPTIONAL)'
@@ -52,9 +49,12 @@ on:
         type: choice
         options:
           - none
+          - landing
           - bronze
           - silver
           - gold
+          - master
+          - miscellaneous
         required: false
         default: 'none'
       deploy_linked_service:
@@ -122,11 +122,11 @@ jobs:
             fi
           fi
           
-      # Validation to ensure that if ADF Pipelines is not selected, no Bronze/Silver/Gold steps are selected
+      # Validation to ensure that if ADF Pipelines is not selected, no Landing/Bronze/Silver/Gold/Master/Miscellaneous steps are selected
       - name: Validate ADF Pipelines Step Selection
         run: |
           if [[ "${{ inputs.deploy_adf_pipelines }}" == "false" && "${{ inputs.adf_pipelines_deployment_steps }}" != "none" ]]; then
-            echo "If 'deploy_adf_pipelines' is not selected, no deployment steps (bronze, silver, gold) should be selected."
+            echo "If 'deploy_adf_pipelines' is not selected, no deployment steps (landing, bronze, silver, gold, master, miscellaneous) should be selected."
             exit 1
           fi
 
