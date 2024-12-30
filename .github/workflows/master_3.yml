@@ -51,6 +51,11 @@ on:
         type: choice
         options:
             - bronze
+            - gold
+            - landing
+            - master
+            - miscellaneous
+            - silver
         required: false    
       deploy_triggers:
         description: 'Deploy ADF Triggers'
