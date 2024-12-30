@@ -12,7 +12,7 @@ on:
           - prod
         required: true
       function_name:
-        description: 'Please enter the data source to deploy (this should be the project folder name located under the 'data products' folder) - Example: "MPB-MNC","SA_INSIGHTS"'
+        description: 'Please enter the data source to deploy (this should be the project folder name located under the 'data products' folder) - Example: "MPB-MNC, SA_INSIGHTS"'
         type: string
         required: true
       date:
