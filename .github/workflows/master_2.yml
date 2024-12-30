@@ -54,6 +54,16 @@ on:
         description: 'Deploy ADF Triggers'
         type: boolean
         required: false
+      common_pipelines_deployment_steps:
+        description: 'Select ADF Common Pipelines deployment step'
+        type: choice
+        options:
+          - none
+          - bronze
+          - silver
+          - gold
+        required: false
+        default: 'none'
       date:
         description: 'Deploy changes after a commit date in YYYY-MM-DD format (OPTIONAL)'
         type: string
@@ -111,6 +121,14 @@ jobs:
               exit 1
             fi
           fi
+          
+      # Validation to ensure that if ADF Common Pipelines is not selected, no Bronze/Silver/Gold steps are selected
+      - name: Validate ADF Common Pipelines Step Selection
+        run: |
+          if [[ "${{ inputs.deploy_common_pipelines }}" == "false" && "${{ inputs.common_pipelines_deployment_steps }}" != "none" ]]; then
+            echo "If 'deploy_common_pipelines' is not selected, no deployment steps (bronze, silver, gold) should be selected."
+            exit 1
+          fi
 
   trigger_workflows:
     name: Trigger Deployment Workflows
@@ -152,7 +170,7 @@ jobs:
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d '{"ref": "refs/heads/main", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}"}}' \
+            -d '{"ref": "refs/heads/main", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "common_pipelines_deployment_steps": "${{ inputs.common_pipelines_deployment_steps }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_common_pipelines.yml/dispatches
 
       # Trigger ADF Triggers Deployment
