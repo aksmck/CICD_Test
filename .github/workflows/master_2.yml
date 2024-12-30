@@ -34,7 +34,6 @@ on:
         type: choice
         options:
           - none
-          - ingestion_utilities
           - ddl
           - dml
           - all
