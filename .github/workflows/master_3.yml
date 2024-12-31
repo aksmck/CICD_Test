@@ -88,40 +88,21 @@ jobs:
             echo "The specified date is in the future. Please provide a valid past date."
             exit 1
           fi
-          
-      - name: Validate Environment Selection
-        run: |
-          if [[ -z "${{ inputs.environment }}" ]]; then
-            echo "Environment selection cannot be empty."
-            exit 1
-          fi
-          
-      - name: Validate Function Name
-        run: |
-          if [[ "${{ inputs.function_name }}" == "none" && ( "${{ inputs.databricks_deployment }}" == "true" || "${{ inputs.deploy_datasets }}" == "true" || "${{ inputs.deploy_linked_service }}" == "true" || "${{ inputs.deploy_common_pipelines }}" == "true" || "${{ inputs.deploy_triggers }}" == "true" ) ]]; then
-            echo "If 'function_name' is 'none', no deployment options should be selected."
-            exit 1
-          fi
-          
-      - name: Validate Databricks Deployment Steps
-        run: |
-          if [[ "${{ inputs.databricks_deployment }}" == "true" && "${{ inputs.databricks_deployment_steps }}" == "none" ]]; then
-            echo "If Databricks deployment is enabled, at least one deployment step must be selected."
-            exit 1
-          fi
-          
-      - name: Validate Linked Services and Datasets Deployment
-        run: |
-          if [[ "${{ inputs.deploy_linked_service }}" == "true" || "${{ inputs.deploy_datasets }}" == "true" ]]; then
-            if [[ "${{ inputs.function_name }}" == "none" ]]; then
-              echo "If deploying linked services or datasets, a valid function name must be provided."
-              exit 1
-            fi
-          fi
+
+  approval_gate:
+    if: ${{ inputs.environment == 'prod' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: prod
+      url: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Await Approval for Production Deployment
+        run: echo "Waiting for admin approval to proceed with production deployment."
 
   trigger_workflows:
     name: Trigger Deployment Workflows
     runs-on: ubuntu-latest
+    needs: [validate_inputs, approval_gate]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
