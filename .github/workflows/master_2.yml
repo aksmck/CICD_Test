@@ -99,13 +99,6 @@ jobs:
             exit 1
           fi
           
-      - name: Validate Databricks Deployment Steps
-        run: |
-          if [[ "${{ inputs.databricks_deployment_steps }}" == "none" ]]; then
-            echo "If Databricks deployment is selected, at least one deployment step must be chosen."
-            exit 1
-          fi
-          
       - name: Validate Linked Services and Datasets Deployment
         run: |
           if [[ "${{ inputs.deploy_linked_service }}" == "true" || "${{ inputs.deploy_datasets }}" == "true" ]]; then
@@ -113,13 +106,6 @@ jobs:
               echo "If deploying linked services or datasets, a valid function name must be provided."
               exit 1
             fi
-          fi
-          
-      - name: Validate ADF Pipelines Step Selection
-        run: |
-          if [[ "${{ inputs.adf_pipelines_deployment_steps }}" == "none" ]]; then
-            echo "If no ADF pipelines deployment step is selected, no step should be chosen."
-            exit 1
           fi
 
   trigger_workflows:
