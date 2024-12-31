@@ -3,6 +3,9 @@ name: Databricks Deployment
 on:
   workflow_dispatch:
     inputs:
+      branch:
+        type: string
+        required: true
       environment:
         type: string
         required: true
@@ -20,6 +23,7 @@ env:
   ENVIRONMENT: ${{ inputs.environment }}
   DATE: ${{ inputs.date }}
   FUNCTION_NAME: ${{ inputs.function_name }}
+  BRANCH: ${{ inputs.branch }}
 
 jobs:
   deploy:
@@ -27,6 +31,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          ref: ${{ inputs.branch }}  # Checkout the specified branch
 
       # Step to get changed files since the specified date
       - name: Get changed files since
