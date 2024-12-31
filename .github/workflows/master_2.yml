@@ -25,10 +25,6 @@ on:
         type: string
         default: '1999-01-01'
         required: true
-      databricks_deployment:
-        description: 'Enable Databricks Deployment?'
-        type: boolean
-        required: true
       databricks_deployment_steps:
         description: 'Select Databricks deployment step'
         type: choice
@@ -39,15 +35,12 @@ on:
           - all
         required: false
         default: 'none'
-      deploy_adf_pipelines:
-        description: 'Enable ADF Pipelines Deployment?'
-        type: boolean
-        required: false
       adf_pipelines_deployment_steps:
         description: 'Select ADF Pipelines deployment step'
         type: choice
         options:
           - none
+          - all
           - landing
           - bronze
           - silver
@@ -108,8 +101,8 @@ jobs:
           
       - name: Validate Databricks Deployment Steps
         run: |
-          if [[ "${{ inputs.databricks_deployment }}" == "true" && "${{ inputs.databricks_deployment_steps }}" == "none" ]]; then
-            echo "If Databricks deployment is enabled, at least one deployment step must be selected."
+          if [[ "${{ inputs.databricks_deployment_steps }}" == "none" ]]; then
+            echo "If Databricks deployment is selected, at least one deployment step must be chosen."
             exit 1
           fi
           
@@ -124,8 +117,8 @@ jobs:
           
       - name: Validate ADF Pipelines Step Selection
         run: |
-          if [[ "${{ inputs.deploy_adf_pipelines }}" == "false" && "${{ inputs.adf_pipelines_deployment_steps }}" != "none" ]]; then
-            echo "If 'deploy_adf_pipelines' is not selected, no deployment steps (landing, bronze, silver, gold, master, miscellaneous) should be selected."
+          if [[ "${{ inputs.adf_pipelines_deployment_steps }}" == "none" ]]; then
+            echo "If no ADF pipelines deployment step is selected, no step should be chosen."
             exit 1
           fi
 
@@ -140,7 +133,7 @@ jobs:
 
       # Trigger Databricks Deployment
       - name: Trigger Databricks Deployment
-        if: ${{ inputs.databricks_deployment == true }}
+        if: ${{ inputs.databricks_deployment_steps != 'none' }}
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
@@ -149,7 +142,7 @@ jobs:
 
       # Trigger ADF Pipelines Deployment
       - name: Trigger ADF Pipelines Deployment
-        if: ${{ inputs.deploy_adf_pipelines == true }}
+        if: ${{ inputs.adf_pipelines_deployment_steps != 'none' }}
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
