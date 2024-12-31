@@ -79,7 +79,7 @@ jobs:
           echo "Deploying to Databricks for environment: ${{ inputs.environment }} after date: ${{ inputs.date }}"
 
           # Set the target path base in Databricks workspace
-          BASE_PATH="/Workspace/Users/s2ek20b@mckesson.com/CICD_TEST"
+          BASE_PATH="/Workspace/Users/s2ek20b@mckesson.com/EDP_PSAS_DI_Data_Products"
 
           # Deploy Ingestion Utilities if selected
           if [[ "${{ inputs.databricks_deployment_steps }}" == "ingestion_utilities" || "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
