@@ -12,7 +12,7 @@ on:
           - prod
         required: true
       branch:
-        description: 'Select the branch to deploy (e.g., main, develop, qa)'
+        description: 'Select the branch to deploy (e.g., main, dev, qa)'
         type: string
         required: true
         default: ''  # Default value is blank, user can provide a branch name like main, dev, or qa.        
