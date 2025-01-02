@@ -7,7 +7,7 @@ on:
         description: 'Select the branch to deploy (e.g., main, develop, qa)'
         type: string
         required: true
-        default: ''  # Default value is blank, user can provide a branch name like main, develop, or qa.
+        default: 'main'
       environment:
         description: 'Environment to deploy'
         type: choice
@@ -17,11 +17,11 @@ on:
           - prod
         required: true
       function_name:
-        description: "Please enter the data source to deploy (this should be the project folder name located under the 'data products' folder) - Example: \"MPB-MNC, SA_INSIGHTS\""
+        description: "Enter the data source to deploy (e.g., MPB-MNC, SA_INSIGHTS)"
         type: string
         required: true
       date:
-        description: 'Deploy changes after a commit date in YYYY-MM-DD format (OPTIONAL)'
+        description: 'Deploy changes after a commit date (YYYY-MM-DD)'
         type: string
         default: '1999-01-01'
         required: true
@@ -74,54 +74,25 @@ jobs:
       - name: Validate Date Format
         run: |
           if ! [[ "${{ inputs.date }}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
-            echo "Invalid date format. Please use YYYY-MM-DD."
+            echo "Invalid date format. Use YYYY-MM-DD."
             exit 1
           fi
-      
+
       - name: Validate Future Date
         run: |
           if [[ "${{ inputs.date }}" > "$(date +%Y-%m-%d)" ]]; then
-            echo "The specified date is in the future. Please provide a valid past date."
+            echo "The specified date is in the future. Provide a valid past date."
             exit 1
-          fi
-      
-      - name: Validate Environment Selection
-        run: |
-          if [[ -z "${{ inputs.environment }}" ]]; then
-            echo "Environment selection cannot be empty."
-            exit 1
-          fi
-      
-      - name: Validate Function Name
-        run: |
-          if [[ -z "${{ inputs.function_name }}" ]]; then
-            echo "Data source (function_name) cannot be empty."
-            exit 1
-          fi
-      
-      - name: Validate Linked Services and Datasets Deployment
-        run: |
-          if [[ "${{ inputs.deploy_linked_service }}" == "true" || "${{ inputs.deploy_datasets }}" == "true" ]]; then
-            if [[ "${{ inputs.function_name }}" == "none" ]]; then
-              echo "If deploying linked services or datasets, a valid function name must be provided."
-              exit 1
-            fi
           fi
 
       - name: Validate Environment Based on Branch
         run: |
           if [[ "${{ inputs.environment }}" == "prod" && "${{ inputs.branch }}" != "main" ]]; then
-            echo "Production environment ('prod') can only be deployed from the 'main' branch."
+            echo "Production environment can only be deployed from the 'main' branch."
             exit 1
           fi
-          if [[ "${{ inputs.environment }}" == "qat" && "${{ inputs.branch }}" != "qat" && "${{ inputs.branch }}" != "main" ]]; then
-            echo "QA environment ('qat') can only be deployed from the 'qat' or 'main' branch."
-            exit 1
-          fi
-          if [[ "${{ inputs.environment }}" == "dev" ]]; then
-            echo "All branches can deploy to the 'dev' environment."
-          else
-            echo "Invalid combination of branch '${{ inputs.branch }}' and environment '${{ inputs.environment }}'."
+          if [[ "${{ inputs.environment }}" == "qat" && "${{ inputs.branch }}" != "qa" && "${{ inputs.branch }}" != "main" ]]; then
+            echo "QA environment can only be deployed from the 'qa' or 'main' branch."
             exit 1
           fi
 
@@ -132,9 +103,8 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v2
         with:
-          ref: ${{ inputs.branch }}  # Checkout the specified branch for the deployment
+          ref: ${{ inputs.branch }}
 
-      # Trigger Databricks Deployment
       - name: Trigger Databricks Deployment
         if: ${{ inputs.databricks_deployment_steps != 'none' }}
         run: |
@@ -143,7 +113,6 @@ jobs:
             -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "databricks_deployment_steps": "${{ inputs.databricks_deployment_steps }}", "function_name": "${{ inputs.function_name }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/databricks.yml/dispatches
 
-      # Trigger ADF Pipelines Deployment
       - name: Trigger ADF Pipelines Deployment
         if: ${{ inputs.adf_pipelines_deployment_steps != 'none' }}
         run: |
@@ -152,27 +121,24 @@ jobs:
             -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "adf_pipelines_deployment_steps": "${{ inputs.adf_pipelines_deployment_steps }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_pipelines.yml/dispatches
 
-      # Trigger ADF Datasets Deployment
       - name: Trigger ADF Datasets Deployment
-        if: ${{ inputs.deploy_datasets == true }}
+        if: ${{ inputs.deploy_datasets }}
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataset.yml/dispatches
 
-      # Trigger ADF Linked Services Deployment
       - name: Trigger ADF Linked Services Deployment
-        if: ${{ inputs.deploy_linked_service == true }}
+        if: ${{ inputs.deploy_linked_service }}
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_linked_service.yml/dispatches
 
-      # Trigger ADF Triggers Deployment
       - name: Trigger ADF Triggers Deployment
-        if: ${{ inputs.deploy_triggers == true }}
+        if: ${{ inputs.deploy_triggers }}
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
