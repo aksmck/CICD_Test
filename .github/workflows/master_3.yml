@@ -3,6 +3,11 @@ name: Master Deployment Workflow_3
 on:
   workflow_dispatch:
     inputs:
+      branch:
+        description: 'Select the branch to deploy (e.g., main, dev, qa)'
+        type: string
+        required: true
+        default: ''  # Default value is blank, user can provide a branch name like main, dev, or qa.     
       environment:
         description: 'Environment to deploy'
         type: choice
@@ -10,12 +15,7 @@ on:
           - dev
           - qa
           - prod
-        required: true
-      branch:
-        description: 'Select the branch to deploy (e.g., main, dev, qa)'
-        type: string
-        required: true
-        default: ''  # Default value is blank, user can provide a branch name like main, dev, or qa.        
+        required: true       
       function_name:
         description: "Enter the data source to deploy (e.g., MPB-MNC, SA_INSIGHTS)"
         type: string
