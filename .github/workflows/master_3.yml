@@ -7,7 +7,7 @@ on:
         description: 'Select the branch to deploy (e.g., main, develop, qa)'
         type: string
         required: true
-        default: 'main'
+        default: ''  # Default value is blank, user can provide a branch name like main, develop, or qa.
       environment:
         description: 'Environment to deploy'
         type: choice
@@ -95,6 +95,22 @@ jobs:
             echo "QA environment can only be deployed from the 'qa' or 'main' branch."
             exit 1
           fi
+      - name: Validate Function Name
+        run: |
+          if [[ -z "${{ inputs.function_name }}" ]]; then
+            echo "Data source (function_name) cannot be empty."
+            exit 1
+          fi
+          
+      - name: Validate Linked Services and Datasets Deployment
+        run: |
+          if [[ "${{ inputs.deploy_linked_service }}" == "true" || "${{ inputs.deploy_datasets }}" == "true" ]]; then
+            if [[ "${{ inputs.function_name }}" == "none" ]]; then
+              echo "If deploying linked services or datasets, a valid function name must be provided."
+              exit 1
+            fi
+          fi
+
 
   trigger_workflows:
     name: Trigger Deployment Workflows
@@ -122,7 +138,7 @@ jobs:
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_pipelines.yml/dispatches
 
       - name: Trigger ADF Datasets Deployment
-        if: ${{ inputs.deploy_datasets }}
+        if: ${{ inputs.deploy_datasets == true }}
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
@@ -130,7 +146,7 @@ jobs:
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataset.yml/dispatches
 
       - name: Trigger ADF Linked Services Deployment
-        if: ${{ inputs.deploy_linked_service }}
+        if: ${{ inputs.deploy_linked_service == true }}
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
@@ -138,7 +154,7 @@ jobs:
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_linked_service.yml/dispatches
 
       - name: Trigger ADF Triggers Deployment
-        if: ${{ inputs.deploy_triggers }}
+        if: ${{ inputs.deploy_triggers == true }}
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
