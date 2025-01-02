@@ -87,11 +87,11 @@ jobs:
 
       - name: Validate Environment Based on Branch
         run: |
-          if [[ "${{ inputs.environment }}" == "prod" && "${{ inputs.branch }}" != "main" ]]; then
+          if [["${{ inputs.branch }}" != "main" && "${{ inputs.environment }}" == "prod"]]; then
             echo "Production environment can only be deployed from the 'main' branch."
             exit 1
           fi
-          if [[ "${{ inputs.environment }}" == "qa" && "${{ inputs.branch }}" != "qa" && "${{ inputs.branch }}" != "main" ]]; then
+          if [["${{ inputs.branch }}" != "qa" && "${{ inputs.branch }}" != "main" && "${{ inputs.environment }}" == "qa" ]]; then
             echo "QA environment can only be deployed from the 'qa' or 'main' branch."
             exit 1
           fi
