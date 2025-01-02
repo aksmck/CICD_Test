@@ -115,6 +115,7 @@ jobs:
 
   trigger_workflows:
     name: Trigger Deployment Workflows
+    needs: validate_inputs
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
