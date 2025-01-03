@@ -15,6 +15,20 @@ on:
         description: "Enter the data source to deploy (e.g., MPB-MNC, SA_INSIGHTS)"
         type: string
         required: true
+      adf_pipelines_deployment_steps:
+        description: 'Select ADF Pipelines deployment step'
+        type: choice
+        options:
+          - none
+          - all
+          - landing
+          - bronze
+          - silver
+          - gold
+          - master
+          - miscellaneous
+        required: false
+        default: 'none'
       pipeline_name:
         description: 'Select pipeline to deploy'
         type: choice
@@ -54,7 +68,7 @@ jobs:
         uses: tj-actions/changed-files@v37
         with:
           since: "${{ env.DATE }}"
-          files: "dataproducts/${{ env.FUNCTION_NAME }}/pipelines/${{ env.ENVIRONMENT }}/"
+          files: "dataproducts/${{ env.FUNCTION_NAME }}/pipelines/"
 
       - name: Publish ADF Pipelines
         run: |
@@ -77,13 +91,28 @@ jobs:
 
           echo "Logged in successfully"
 
-          # Process changed files and deploy pipelines
-          for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
-            if [[ $file == *'.json' ]]; then
-              echo "Deploying pipeline: $file"
-              pipeline_name=${file##*/}
-              pipeline_name=${pipeline_name%.*}  # Remove the file extension
-              # Deploy the pipeline to the Azure Data Factory
-              az datafactory pipeline create --factory-name $FACTORY_NAME --pipeline $file --name $pipeline_name --resource-group $RESOURCE_GROUP
-            fi
-          done
+          # Deploy files with changes after the provided date in any folder under the pipelines directory
+          if [[ $adf_pipelines_deployment_steps == "all" ]]; then
+            # Deploy files with changes in any folder after the specified date
+            for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
+              if [[ $file == dataproducts/${{ env.FUNCTION_NAME }}/pipelines/* && $file == *".json" ]]; then
+                echo "Deploying pipeline with change after the date: $file"
+                pipeline_name=${file##*/}
+                pipeline_name=${pipeline_name%.*}  # Remove the file extension
+                az datafactory pipeline create --factory-name $FACTORY_NAME --pipeline $file --name $pipeline_name --resource-group $RESOURCE_GROUP
+              fi
+            done
+          else
+            # Set the folder path based on the selected deployment step (landing, bronze, etc.)
+            folder="dataproducts/${{ env.FUNCTION_NAME }}/pipelines/${{ env.adf_pipelines_deployment_steps }}/"
+
+            # Process files only in the selected folder
+            for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
+              if [[ $file == $folder* && $file == *".json" ]]; then
+                echo "Deploying pipeline from $adf_pipelines_deployment_steps folder: $file"
+                pipeline_name=${file##*/}
+                pipeline_name=${pipeline_name%.*}  # Remove the file extension
+                az datafactory pipeline create --factory-name $FACTORY_NAME --pipeline $file --name $pipeline_name --resource-group $RESOURCE_GROUP
+              fi
+            done
+          fi
