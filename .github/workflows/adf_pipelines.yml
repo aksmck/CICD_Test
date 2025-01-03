@@ -4,41 +4,27 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to deploy'
-        type: choice
-        options:
-          - dev
-          - qa
-          - prod
+        description: 'Environment'
+        type: string
         required: true
       function_name:
-        description: "Enter the data source to deploy (e.g., MPB-MNC, SA_INSIGHTS)"
+        description: 'Data source'
         type: string
         required: true
-      adf_pipelines_deployment_steps:
-        description: 'Select ADF Pipelines deployment step'
-        type: choice
-        options:
-          - none
-          - all
-          - landing
-          - bronze
-          - silver
-          - gold
-          - master
-          - miscellaneous
-        required: false
-        default: 'none'
-      date:
-        description: 'Deploy changes after a commit date in YYYY-MM-DD format (OPTIONAL)'
+      adf_deployment_step:
+        description: 'Pipeline steps'
         type: string
-        default: '1999-01-01'
+        required: true
+      date:
+        description: 'Commit date'
+        type: string
         required: true
 
 env:
-  ENVIRONMENT: ${{ inputs.environment }}
-  DATE: ${{ inputs.date }}
-  FUNCTION_NAME: ${{ inputs.function_name }}
+  ENVIRONMENT: ${{ inputs.environment }}  # Passed from master workflow
+  DATE: ${{ inputs.date }}                # Passed from master workflow
+  FUNCTION_NAME: ${{ inputs.function_name }}  # Passed from master workflow
+  ADF_PIPELINES_DEPLOYMENT_STEPS: ${{ inputs.adf_deployment_step }}  # Passed from master workflow
   BRANCH: ${{ github.ref_name }}
 
 jobs:
@@ -84,7 +70,7 @@ jobs:
           echo "Logged in successfully"
 
           # Check if 'all' is selected and deploy pipelines accordingly
-          if [[ $adf_pipelines_deployment_steps == "all" ]]; then
+          if [[ $ADF_PIPELINES_DEPLOYMENT_STEPS == "all" ]]; then
             for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
               if [[ $file == dataproducts/${{ env.FUNCTION_NAME }}/pipelines/* && $file == *".json" ]]; then
                 echo "Deploying pipeline with change after the date: $file"
@@ -97,10 +83,10 @@ jobs:
               fi
             done
           else
-            folder="dataproducts/${{ env.FUNCTION_NAME }}/pipelines/${{ env.adf_pipelines_deployment_steps }}/"
+            folder="dataproducts/${{ env.FUNCTION_NAME }}/pipelines/${{ env.ADF_PIPELINES_DEPLOYMENT_STEPS }}/"
             for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
               if [[ $file == $folder* && $file == *".json" ]]; then
-                echo "Deploying pipeline from $adf_pipelines_deployment_steps folder: $file"
+                echo "Deploying pipeline from $ADF_PIPELINES_DEPLOYMENT_STEPS folder: $file"
                 pipeline_name=${file##*/} 
                 pipeline_name=${pipeline_name%.*}  # Remove the file extension
 
