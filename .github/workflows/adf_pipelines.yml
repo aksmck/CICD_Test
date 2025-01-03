@@ -11,7 +11,7 @@ on:
         description: 'Data source'
         type: string
         required: true
-      adf_deployment_step:
+      adf_pipelines_deployment_steps:
         description: 'Pipeline steps'
         type: string
         required: true
@@ -24,7 +24,7 @@ env:
   ENVIRONMENT: ${{ inputs.environment }}  # Passed from master workflow
   DATE: ${{ inputs.date }}                # Passed from master workflow
   FUNCTION_NAME: ${{ inputs.function_name }}  # Passed from master workflow
-  ADF_PIPELINES_DEPLOYMENT_STEPS: ${{ inputs.adf_deployment_step }}  # Passed from master workflow
+  ADF_PIPELINES_DEPLOYMENT_STEPS: ${{ inputs.adf_pipelines_deployment_steps }}  # Passed from master workflow
   BRANCH: ${{ github.ref_name }}
 
 jobs:
