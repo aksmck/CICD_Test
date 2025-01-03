@@ -1,4 +1,4 @@
-name: Publish Common ADF Pipelines
+name: Publish ADF Pipelines
 
 on:
   workflow_dispatch:
@@ -29,14 +29,6 @@ on:
           - miscellaneous
         required: false
         default: 'none'
-      pipeline_name:
-        description: 'Select pipeline to deploy'
-        type: choice
-        options: 
-          - all
-          - brnz_to_slvr_dq_integrated
-          - psasdi_10000_master_orchestrator
-        required: true
       date:
         description: 'Deploy changes after a commit date in YYYY-MM-DD format (OPTIONAL)'
         type: string
@@ -96,10 +88,10 @@ jobs:
             for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
               if [[ $file == dataproducts/${{ env.FUNCTION_NAME }}/pipelines/* && $file == *".json" ]]; then
                 echo "Deploying pipeline with change after the date: $file"
-                pipeline_name=${file##*/}
+                pipeline_name=${file##*/} 
                 pipeline_name=${pipeline_name%.*}  # Remove the file extension
 
-                # Deploy the pipeline to a specific folder (change 'folder_name' to your desired folder path)
+                # Deploy the pipeline to a specific folder
                 folder_name="test_folder"  # Specify your folder here
                 az datafactory pipeline create --factory-name $FACTORY_NAME --pipeline $file --name $pipeline_name --resource-group $RESOURCE_GROUP --folder "$folder_name"
               fi
@@ -109,10 +101,10 @@ jobs:
             for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
               if [[ $file == $folder* && $file == *".json" ]]; then
                 echo "Deploying pipeline from $adf_pipelines_deployment_steps folder: $file"
-                pipeline_name=${file##*/}
+                pipeline_name=${file##*/} 
                 pipeline_name=${pipeline_name%.*}  # Remove the file extension
 
-                # Deploy the pipeline to a specific folder (change 'folder_name' to your desired folder path)
+                # Deploy the pipeline to a specific folder
                 folder_name="test_folder"  # Specify your folder here
                 az datafactory pipeline create --factory-name $FACTORY_NAME --pipeline $file --name $pipeline_name --resource-group $RESOURCE_GROUP --folder "$folder_name"
               fi
