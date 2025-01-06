@@ -69,7 +69,7 @@ jobs:
 
           echo "Logged in successfully"
 
-          # Define the folder structure for the ADF pipelines
+          # Define folder structure as part of the pipeline name
           TARGET_FOLDER="Test_GIT/bronze/sample_lookup_activity"
 
           # Check if 'all' is selected and deploy pipelines accordingly
@@ -80,8 +80,8 @@ jobs:
                 pipeline_name=${file##*/}
                 pipeline_name=${pipeline_name%.*}  # Remove the file extension
 
-                # Deploy to the folder structure
-                az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline "$file" --name "$pipeline_name" --folder "$TARGET_FOLDER"
+                # Use the folder path in the pipeline name
+                az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline "$file" --name "$TARGET_FOLDER/$pipeline_name"
               fi
             done
           else
@@ -92,8 +92,9 @@ jobs:
                 pipeline_name=${file##*/}
                 pipeline_name=${pipeline_name%.*}  # Remove the file extension
 
-                # Deploy to the folder structure
-                az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline "$file" --name "$pipeline_name" --folder "$TARGET_FOLDER"
+                # Use the folder path in the pipeline name
+                az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline "$file" --name "$TARGET_FOLDER/$pipeline_name"
               fi
             done
           fi
+          
