@@ -69,14 +69,19 @@ jobs:
 
           echo "Logged in successfully"
 
+          # Define the folder structure for the ADF pipelines
+          TARGET_FOLDER="Test_GIT/bronze/sample_lookup_activity"
+
           # Check if 'all' is selected and deploy pipelines accordingly
           if [[ $ADF_PIPELINES_DEPLOYMENT_STEPS == "all" ]]; then
             for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
               if [[ $file == dataproducts/${{ env.FUNCTION_NAME }}/pipelines/* && $file == *".json" ]]; then
                 echo "Deploying pipeline with change after the date: $file"
-                pipeline_name=${file##*/} 
+                pipeline_name=${file##*/}
                 pipeline_name=${pipeline_name%.*}  # Remove the file extension
-                az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline "$file" --name "$pipeline_name"
+
+                # Deploy to the folder structure
+                az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline "$file" --name "$pipeline_name" --folder "$TARGET_FOLDER"
               fi
             done
           else
@@ -84,9 +89,11 @@ jobs:
             for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
               if [[ $file == $folder* && $file == *".json" ]]; then
                 echo "Deploying pipeline from $ADF_PIPELINES_DEPLOYMENT_STEPS folder: $file"
-                pipeline_name=${file##*/} 
+                pipeline_name=${file##*/}
                 pipeline_name=${pipeline_name%.*}  # Remove the file extension
-                az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline "$file" --name "$pipeline_name"
+
+                # Deploy to the folder structure
+                az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline "$file" --name "$pipeline_name" --folder "$TARGET_FOLDER"
               fi
             done
           fi
