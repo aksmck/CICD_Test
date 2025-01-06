@@ -24,7 +24,7 @@ env:
   ENVIRONMENT: ${{ inputs.environment }}  # Passed from master workflow
   DATE: ${{ inputs.date }}                # Passed from master workflow
   FUNCTION_NAME: ${{ inputs.function_name }}  # Passed from master workflow
-  ADF_PIPELINES_DEPLOYMENT_STEPS: ${{ inputs.adf_pipelines_deployment_steps }}  # Passed from master workflow
+  ADF_PIPELINES_DEployment_STEPS: ${{ inputs.adf_pipelines_deployment_steps }}  # Passed from master workflow
   BRANCH: ${{ github.ref_name }}
 
 jobs:
@@ -69,32 +69,28 @@ jobs:
 
           echo "Logged in successfully"
 
-          # Define folder structure as part of the pipeline name
-          TARGET_FOLDER="Test_GIT/bronze/sample_lookup_activity"
-
           # Check if 'all' is selected and deploy pipelines accordingly
           if [[ $ADF_PIPELINES_DEPLOYMENT_STEPS == "all" ]]; then
             for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
               if [[ $file == dataproducts/${{ env.FUNCTION_NAME }}/pipelines/* && $file == *".json" ]]; then
                 echo "Deploying pipeline with change after the date: $file"
-                pipeline_name=${file##*/}
+                pipeline_name=${file##*/}  # Extract the file name without extension
                 pipeline_name=${pipeline_name%.*}  # Remove the file extension
 
-                # Use the folder path in the pipeline name
-                az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline "$file" --name "$TARGET_FOLDER/$pipeline_name"
+                # Deploy directly under the Pipelines section (no folder)
+                az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline "$file" --name "$pipeline_name"
               fi
             done
           else
-            folder="dataproducts/${{ env.FUNCTION_NAME }}/pipelines/${{ env.ADF_PIPELINES_DEPLOYMENT_STEPS }}/"
+            folder="dataproducts/${{ env.FUNCTION_NAME }}/pipelines/${{ env.ADF_PIPELINES_DEployment_STEPS }}/"
             for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
               if [[ $file == $folder* && $file == *".json" ]]; then
-                echo "Deploying pipeline from $ADF_PIPELINES_DEPLOYMENT_STEPS folder: $file"
-                pipeline_name=${file##*/}
+                echo "Deploying pipeline from $ADF_PIPELINES_DEployment_STEPS folder: $file"
+                pipeline_name=${file##*/}  # Extract the file name without extension
                 pipeline_name=${pipeline_name%.*}  # Remove the file extension
 
-                # Use the folder path in the pipeline name
-                az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline "$file" --name "$TARGET_FOLDER/$pipeline_name"
+                # Deploy directly under the Pipelines section (no folder)
+                az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline "$file" --name "$pipeline_name"
               fi
             done
           fi
-          
