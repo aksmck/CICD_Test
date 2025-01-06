@@ -21,10 +21,10 @@ on:
         required: true
 
 env:
-  ENVIRONMENT: ${{ inputs.environment }}  # Passed from master workflow
-  DATE: ${{ inputs.date }}                # Passed from master workflow
-  FUNCTION_NAME: ${{ inputs.function_name }}  # Passed from master workflow
-  ADF_PIPELINES_DEployment_STEPS: ${{ inputs.adf_pipelines_deployment_steps }}  # Passed from master workflow
+  ENVIRONMENT: ${{ inputs.environment }}
+  DATE: ${{ inputs.date }}
+  FUNCTION_NAME: ${{ inputs.function_name }}
+  ADF_PIPELINES_DEployment_STEPS: ${{ inputs.adf_pipelines_deployment_steps }}
   BRANCH: ${{ github.ref_name }}
 
 jobs:
@@ -48,8 +48,13 @@ jobs:
           since: "${{ env.DATE }}"
           files: "dataproducts/${{ env.FUNCTION_NAME }}/pipelines/"
 
+      - name: Print changed files
+        run: |
+          echo "Changed files since date: ${{ steps.changed-files-since.outputs.all_changed_files }}"
+
       - name: Publish ADF Pipelines
         run: |
+          # Authentication for dev, qa, prod
           if [[ $ENVIRONMENT == 'dev' ]]; then
             az login --service-principal --username "${{ secrets.CLIENT }}" --password "${{ secrets.CLIENTSECRET }}" --tenant "${{ secrets.TENANT }}"
             az account set -s ${{ secrets.SUBSCRIPTION_ID }}
@@ -67,18 +72,21 @@ jobs:
             RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP_PROD }}"
           fi
 
+          # Confirm authentication worked
+          az account show
+
           echo "Logged in successfully"
 
-          # Check if 'all' is selected and deploy pipelines accordingly
+          # Deploy pipelines
           if [[ $ADF_PIPELINES_DEPLOYMENT_STEPS == "all" ]]; then
             for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
               if [[ $file == dataproducts/${{ env.FUNCTION_NAME }}/pipelines/* && $file == *".json" ]]; then
-                echo "Deploying pipeline with change after the date: $file"
-                pipeline_name=${file##*/}  # Extract the file name without extension
-                pipeline_name=${pipeline_name%.*}  # Remove the file extension
+                echo "Deploying pipeline: $file"
+                pipeline_name=${file##*/}  # Extract file name
+                pipeline_name=${pipeline_name%.*}  # Remove file extension
 
-                # Deploy directly under the Pipelines section (no folder)
-                az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline "$file" --name "$pipeline_name"
+                # Use '@' to pass the file content to the az command
+                az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline @$file --name "$pipeline_name"
               fi
             done
           else
@@ -86,11 +94,9 @@ jobs:
             for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
               if [[ $file == $folder* && $file == *".json" ]]; then
                 echo "Deploying pipeline from $ADF_PIPELINES_DEployment_STEPS folder: $file"
-                pipeline_name=${file##*/}  # Extract the file name without extension
-                pipeline_name=${pipeline_name%.*}  # Remove the file extension
-
-                # Deploy directly under the Pipelines section (no folder)
-                az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline "$file" --name "$pipeline_name"
+                pipeline_name=${file##*/}
+                pipeline_name=${pipeline_name%.*}
+                az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline @$file --name "$pipeline_name"
               fi
             done
           fi
