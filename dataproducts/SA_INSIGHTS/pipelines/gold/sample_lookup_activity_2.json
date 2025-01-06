@@ -1,0 +1,378 @@
+{
+    "name": "sample_lookup_activity_2",
+    "properties": {
+        "activities": [
+            {
+                "name": "T_MHS_PNL_MONTHLY_copy_data",
+                "type": "Copy",
+                "dependsOn": [
+                    {
+                        "activity": "T_MHS_PNL_MONTHLY_mdx_query",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "source": {
+                        "type": "SapBwSource",
+                        "query": {
+                            "value": "@{string(activity('T_MHS_PNL_MONTHLY_mdx_query').output.runOutput)}",
+                            "type": "Expression"
+                        }
+                    },
+                    "sink": {
+                        "type": "ParquetSink",
+                        "storeSettings": {
+                            "type": "AzureBlobFSWriteSettings"
+                        },
+                        "formatSettings": {
+                            "type": "ParquetWriteSettings"
+                        }
+                    },
+                    "enableStaging": false,
+                    "translator": {
+                        "type": "TabularTranslator",
+                        "typeConversion": true,
+                        "typeConversionSettings": {
+                            "allowDataTruncation": true,
+                            "treatBooleanAsNumber": false
+                        }
+                    }
+                },
+                "inputs": [
+                    {
+                        "referenceName": "ds_psas_di_sap_sac_mhs_pnl_monthly_src",
+                        "type": "DatasetReference"
+                    }
+                ],
+                "outputs": [
+                    {
+                        "referenceName": "ds_psas_di_sap_sac_mhs_pnl_monthly_sink",
+                        "type": "DatasetReference"
+                    }
+                ]
+            },
+            {
+                "name": "T_MHS_PNL_MONTHLY_aliasing",
+                "type": "ExecuteDataFlow",
+                "dependsOn": [
+                    {
+                        "activity": "T_MHS_PNL_MONTHLY_copy_data",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "dataflow": {
+                        "referenceName": "df_psas_di_sap_sac_mhs_pnl_monthly_alias",
+                        "type": "DataFlowReference"
+                    },
+                    "compute": {
+                        "coreCount": 8,
+                        "computeType": "General"
+                    },
+                    "traceLevel": "Fine"
+                }
+            },
+            {
+                "name": "T_MHS_PNL_MONTHLY_read_lookup",
+                "description": "To read Lookup Table ",
+                "type": "DatabricksNotebook",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "notebookPath": "/Shared/PSAS_DI/COMMON_UTILITIES/LookUp_Utility",
+                    "baseParameters": {
+                        "Operation": {
+                            "value": "@pipeline().globalParameters.Operation_Read",
+                            "type": "Expression"
+                        },
+                        "source_table_identifier": "SAP.OBJECT_TYPE.T_MHS_PNL_MONTHLY",
+                        "system_type": {
+                            "value": "@pipeline().globalParameters.system_type_sap_sac",
+                            "type": "Expression"
+                        },
+                        "adls_container": {
+                            "value": "@pipeline().globalParameters.adls_container",
+                            "type": "Expression"
+                        },
+                        "lookup_database_name": {
+                            "value": "@pipeline().globalParameters.lookup_database_name",
+                            "type": "Expression"
+                        },
+                        "storage_account_name": {
+                            "value": "@pipeline().globalParameters.storage_account_name",
+                            "type": "Expression"
+                        },
+                        "scope": {
+                            "value": "@pipeline().globalParameters.scope",
+                            "type": "Expression"
+                        },
+                        "env": {
+                            "value": "@pipeline().globalParameters.env",
+                            "type": "Expression"
+                        }
+                    }
+                },
+                "linkedServiceName": {
+                    "referenceName": "Psas_DI_Databricks_medium",
+                    "type": "LinkedServiceReference"
+                }
+            },
+            {
+                "name": "T_MHS_PNL_MONTHLY_data_ingestion",
+                "type": "DatabricksNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "T_MHS_PNL_MONTHLY_aliasing",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "notebookPath": "/Shared/PSAS_DI/COMMON_UTILITIES/parquet_to_deltalake_ingestion",
+                    "baseParameters": {
+                        "create_table": "Y",
+                        "env": {
+                            "value": "@pipeline().globalParameters.env",
+                            "type": "Expression"
+                        },
+                        "inc_column_name": {
+                            "value": "@{string(activity('T_MHS_PNL_MONTHLY_read_lookup').output.runOutput['MESSAGE']['inc_column_name'])}",
+                            "type": "Expression"
+                        },
+                        "pipeline_name": {
+                            "value": "@{pipeline().Pipeline}",
+                            "type": "Expression"
+                        },
+                        "pipeline_start_time": {
+                            "value": "@{string(pipeline().TriggerTime)}",
+                            "type": "Expression"
+                        },
+                        "source_file_path": {
+                            "value": "@concat('abfss://landingzone@',pipeline().globalParameters.storage_account_name,'.dfs.core.windows.net/SAC_RAW_FILES/T_MHS_PNL_MONTHLY/sac_final_mhs.parquet')",
+                            "type": "Expression"
+                        },
+                        "source_table_identifier": "SAP.OBJECT_TYPE.T_MHS_PNL_MONTHLY",
+                        "target_table_identifier": {
+                            "value": "@{string(activity('T_MHS_PNL_MONTHLY_read_lookup').output.runOutput['MESSAGE']['target_table_identifier'])}",
+                            "type": "Expression"
+                        },
+                        "write_mode": {
+                            "value": "@pipeline().parameters.write_mode",
+                            "type": "Expression"
+                        },
+                        "adls_container": {
+                            "value": "@pipeline().globalParameters.adls_container",
+                            "type": "Expression"
+                        },
+                        "logging_database_name": {
+                            "value": "@pipeline().globalParameters.logging_database_name",
+                            "type": "Expression"
+                        },
+                        "storage_account_name": {
+                            "value": "@pipeline().globalParameters.storage_account_name",
+                            "type": "Expression"
+                        },
+                        "scope": {
+                            "value": "@pipeline().globalParameters.scope",
+                            "type": "Expression"
+                        }
+                    }
+                },
+                "linkedServiceName": {
+                    "referenceName": "Psas_DI_Databricks_medium",
+                    "type": "LinkedServiceReference"
+                }
+            },
+            {
+                "name": "T_MHS_PNL_MONTHLY_update_lookup",
+                "type": "DatabricksNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "T_MHS_PNL_MONTHLY_data_ingestion",
+                        "dependencyConditions": [
+                            "Completed"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "notebookPath": "/Shared/PSAS_DI/COMMON_UTILITIES/LookUp_Utility",
+                    "baseParameters": {
+                        "Operation": {
+                            "value": "@pipeline().globalParameters.Operation_Update",
+                            "type": "Expression"
+                        },
+                        "source_table_identifier": "SAP.OBJECT_TYPE.T_MHS_PNL_MONTHLY",
+                        "target_table_identifier": {
+                            "value": "@{string(activity('T_MHS_PNL_MONTHLY_read_lookup').output.runOutput['MESSAGE']['target_table_identifier'])}",
+                            "type": "Expression"
+                        },
+                        "system_type": {
+                            "value": "@pipeline().globalParameters.system_type_sap_sac",
+                            "type": "Expression"
+                        },
+                        "last_run_date": {
+                            "value": "@pipeline().TriggerTime",
+                            "type": "Expression"
+                        },
+                        "triggered_type": {
+                            "value": "@pipeline().TriggerType",
+                            "type": "Expression"
+                        },
+                        "inc_column_name": {
+                            "value": "@{string(activity('T_MHS_PNL_MONTHLY_read_lookup').output.runOutput['MESSAGE']['inc_column_name'])}",
+                            "type": "Expression"
+                        },
+                        "adls_container": {
+                            "value": "@pipeline().globalParameters.adls_container",
+                            "type": "Expression"
+                        },
+                        "lookup_database_name": {
+                            "value": "@pipeline().globalParameters.lookup_database_name",
+                            "type": "Expression"
+                        },
+                        "storage_account_name": {
+                            "value": "@pipeline().globalParameters.storage_account_name",
+                            "type": "Expression"
+                        },
+                        "scope": {
+                            "value": "@pipeline().globalParameters.scope",
+                            "type": "Expression"
+                        },
+                        "env": {
+                            "value": "@pipeline().globalParameters.env",
+                            "type": "Expression"
+                        }
+                    }
+                },
+                "linkedServiceName": {
+                    "referenceName": "Psas_DI_Databricks_medium",
+                    "type": "LinkedServiceReference"
+                }
+            },
+            {
+                "name": "T_MHS_PNL_MONTHLY_dqm_silver_ingestion",
+                "type": "ExecutePipeline",
+                "dependsOn": [
+                    {
+                        "activity": "T_MHS_PNL_MONTHLY_data_ingestion",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "brnz_to_slvr_dq_integrated",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {
+                        "source_table_identifier": {
+                            "value": "@{string(activity('T_MHS_PNL_MONTHLY_read_lookup').output.runOutput['MESSAGE']['target_table_identifier'])}",
+                            "type": "Expression"
+                        },
+                        "Env": {
+                            "value": "@pipeline().globalParameters.env",
+                            "type": "Expression"
+                        },
+                        "write_mode": {
+                            "value": "@pipeline().parameters.write_mode",
+                            "type": "Expression"
+                        },
+                        "system_type": {
+                            "value": "@pipeline().globalParameters.system_type_sap_sac",
+                            "type": "Expression"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "T_MHS_PNL_MONTHLY_mdx_query",
+                "type": "DatabricksNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "T_MHS_PNL_MONTHLY_read_lookup",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "notebookPath": "/Workspace/Shared/PSAS_DI/DDL_DML/MHS/DML_MHS_MDX_PARAMETRIZATION"
+                },
+                "linkedServiceName": {
+                    "referenceName": "Psas_DI_Databricks_medium",
+                    "type": "LinkedServiceReference"
+                }
+            }
+        ],
+        "parameters": {
+            "write_mode": {
+                "type": "string",
+                "defaultValue": "append"
+            }
+        },
+        "folder": {
+            "name": "Test_Zone_1/gold"
+        },
+        "annotations": [],
+        "lastPublishTime": "2024-03-28T07:02:30Z"
+    },
+    "type": "Microsoft.DataFactory/factories/pipelines"
+}
