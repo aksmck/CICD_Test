@@ -1,0 +1,51 @@
+{
+    "name": "adls_parquet_file_cph_1",
+    "properties": {
+        "linkedServiceName": {
+            "referenceName": "ls_adls_parametrized",
+            "type": "LinkedServiceReference",
+            "parameters": {
+                "storage_account_url": {
+                    "value": "@dataset().storage_account_url",
+                    "type": "Expression"
+                }
+            }
+        },
+        "parameters": {
+            "target_dir": {
+                "type": "string"
+            },
+            "target_file_system": {
+                "type": "string"
+            },
+            "file_path": {
+                "type": "string"
+            },
+            "storage_account_url": {
+                "type": "string"
+            }
+        },
+        "annotations": [],
+        "type": "Parquet",
+        "typeProperties": {
+            "location": {
+                "type": "AzureBlobFSLocation",
+                "fileName": {
+                    "value": "@dataset().file_path",
+                    "type": "Expression"
+                },
+                "folderPath": {
+                    "value": "@dataset().target_dir",
+                    "type": "Expression"
+                },
+                "fileSystem": {
+                    "value": "@dataset().target_file_system",
+                    "type": "Expression"
+                }
+            },
+            "compressionCodec": "snappy"
+        },
+        "schema": []
+    },
+    "type": "Microsoft.DataFactory/factories/datasets"
+}
