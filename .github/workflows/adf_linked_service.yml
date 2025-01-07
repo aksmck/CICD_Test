@@ -1,5 +1,5 @@
 name: Publish ADF Linked Services
- 
+
 on:
   workflow_dispatch:
     inputs:
@@ -15,29 +15,35 @@ on:
         description: 'Commit date'
         type: string
         required: true
- 
+
 env:
   ENVIRONMENT: ${{ inputs.environment }}
   DATE: ${{ inputs.date }}
   FUNCTION_NAME: ${{ inputs.function_name }}
   BRANCH: ${{ github.ref_name }}
- 
+
 jobs:
   publish:
     runs-on: ubuntu-latest
- 
+
     steps:
       # Step to checkout the code from the specified branch
       - name: Checkout code
         uses: actions/checkout@v2
         with:
           ref: ${{ github.ref_name }}  # Checkout the branch that triggered the workflow
- 
+
       # Install Azure CLI
       - name: Install Azure CLI
         run: |
           curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
- 
+
+      # Debugging step: Validate code structure
+      - name: Validate code structure
+        run: |
+          echo "Validating the directory structure..."
+          ls -R .
+
       # Fetch changed linked service files since the provided date from the branch
       - name: Get changed files since provided date
         id: changed-files-since
@@ -45,12 +51,18 @@ jobs:
         with:
           since: "${{ env.DATE }}"
           files: "dataproducts/${{ env.FUNCTION_NAME }}/linkedservice/"
- 
+
       # Print out the changed files
       - name: Print changed files
         run: |
           echo "Changed files since date: ${{ steps.changed-files-since.outputs.all_changed_files }}"
- 
+
+      # Debugging step: List the linkedservice directory
+      - name: List linkedservice directory
+        run: |
+          echo "Listing files in linkedservice directory:"
+          ls -R dataproducts/${{ env.FUNCTION_NAME }}/linkedservice/
+
       # Publish ADF Linked Services
       - name: Publish ADF Linked Services
         run: |
@@ -71,25 +83,32 @@ jobs:
             FACTORY_NAME="${{ secrets.FACTORY_NAME_PROD }}"
             RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP_PROD }}"
           fi
- 
+
           # Confirm authentication worked
-          az account show
-          echo "Logged in successfully"
- 
+          echo "Confirming Azure authentication..."
+          az account show --query '[name, id, state]'
+
           # Step 1: Deploy Linked Services
           CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
+          echo "Changed files to deploy: $CHANGED_FILES"
+
           if [[ -n "$CHANGED_FILES" ]]; then
-          for file in $CHANGED_FILES; do
-              # Check if the file is in the linkedservice folder and has a .json extension
-              if [[ $file == "dataproducts/${{ env.FUNCTION_NAME }}/linkedservice/*" && $file == *".json" ]]; then
-              echo "Deploying linked service: $file"
-              linked_service_name=${file##*/}  # Extract file name
-              linked_service_name=${linked_service_name%.*}  # Remove file extension
-              # Use '@' to pass the file content to the az command
-              az datafactory linked-service create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --properties @$file --name "$linked_service_name"
+            for file in $CHANGED_FILES; do
+              echo "Processing file: $file"
+
+              # Check if the file exists and is a JSON file
+              if [[ -f "$file" && $file == *.json ]]; then
+                echo "Deploying linked service: $file"
+                linked_service_name=$(basename "$file" .json)
+                echo "Extracted linked service name: $linked_service_name"
+
+                # Deploy the linked service
+                az datafactory linked-service create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --properties @"$file" --name "$linked_service_name"
+                echo "Deployment successful for: $file"
+              else
+                echo "Skipping non-JSON or missing file: $file"
               fi
-          done
+            done
           else
-          echo "No linked service changes detected."
+            echo "No linked service changes detected."
           fi
- 
