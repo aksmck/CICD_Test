@@ -1,5 +1,5 @@
 {
-    "name": "adls_parquet_file_cph_1",
+    "name": "a_test_zone",
     "properties": {
         "linkedServiceName": {
             "referenceName": "ls_adls_parametrized",
