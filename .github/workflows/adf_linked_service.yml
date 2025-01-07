@@ -1,4 +1,3 @@
-# Main Workflow File
 name: Publish ADF Linked Services
 
 on:
@@ -28,23 +27,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step to checkout the code from the specified branch
       - name: Checkout code
         uses: actions/checkout@v2
         with:
           ref: ${{ github.ref_name }}
 
-      # Install Azure CLI
       - name: Install Azure CLI
         run: |
           curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 
-      # Install Azure CLI datafactory extension
       - name: Install Azure CLI datafactory extension
         run: |
           az extension add --name datafactory
 
-      # Fetch changed linked service files since the provided date from the branch
       - name: Get changed files since provided date
         id: changed-files-since
         uses: tj-actions/changed-files@v37
@@ -52,7 +47,6 @@ jobs:
           since: "${{ env.DATE }}"
           files: "dataproducts/${{ env.FUNCTION_NAME }}/linkedservice/"
 
-      # Debugging step to validate files and their contents
       - name: Validate and Debug JSON Files
         run: |
           CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
@@ -61,7 +55,7 @@ jobs:
           if [[ -n "$CHANGED_FILES" ]]; then
             for file in $CHANGED_FILES; do
               echo "Processing file: $file"
-              if [[ -f "$file" && $file == *.json ]]; then
+              if [[ -f "$file" && "$file" == *.json ]]; then
                 echo "File exists: $file"
                 cat "$file"
 
@@ -82,47 +76,43 @@ jobs:
             exit 0
           fi
 
-      # Publish ADF Linked Services
       - name: Publish ADF Linked Services
         run: |
-          # Authenticate based on the environment
-          if [[ $ENVIRONMENT == 'dev' ]]; then
+          if [[ "$ENVIRONMENT" == "dev" ]]; then
             az login --service-principal --username "${{ secrets.CLIENT }}" --password "${{ secrets.CLIENTSECRET }}" --tenant "${{ secrets.TENANT }}"
-            az account set -s ${{ secrets.SUBSCRIPTION_ID }}
+            az account set -s "${{ secrets.SUBSCRIPTION_ID }}"
             FACTORY_NAME="adf-psasdi-westus-dev-01"
             RESOURCE_GROUP="rg-psas-decision-intelligence-westus-dev"
-          elif [[ $ENVIRONMENT == 'qa' ]]; then
+          elif [[ "$ENVIRONMENT" == "qa" ]]; then
             az login --service-principal --username "${{ secrets.CLIENT_ID_QAT }}" --password "${{ secrets.CLIENT_SECRET_QAT }}" --tenant "${{ secrets.TENANT_ID_QAT }}"
-            az account set -s ${{ secrets.SUBSCRIPTION_ID_QAT }}
+            az account set -s "${{ secrets.SUBSCRIPTION_ID_QAT }}"
             FACTORY_NAME="${{ secrets.FACTORY_NAME_QAT }}"
             RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP_QAT }}"
-          elif [[ $ENVIRONMENT == 'prod' ]]; then
+          elif [[ "$ENVIRONMENT" == "prod" ]]; then
             az login --service-principal --username "${{ secrets.CLIENT_ID_PROD }}" --password "${{ secrets.CLIENT_SECRET_PROD }}" --tenant "${{ secrets.TENANT_ID_PROD }}"
-            az account set -s ${{ secrets.SUBSCRIPTION_ID_PROD }}"
+            az account set -s "${{ secrets.SUBSCRIPTION_ID_PROD }}"
             FACTORY_NAME="${{ secrets.FACTORY_NAME_PROD }}"
             RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP_PROD }}"
           fi
 
-          # Confirm authentication worked
           az account show
           echo "Logged in successfully"
 
-          # Deploy Linked Services
           CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
           echo "Changed files to deploy: $CHANGED_FILES"
 
           if [[ -n "$CHANGED_FILES" ]]; then
             for file in $CHANGED_FILES; do
               echo "Processing file: $file"
-              if [[ -f "$file" && $file == *.json ]]; then
+              if [[ -f "$file" && "$file" == *.json ]]; then
                 linked_service_name=$(basename "$file" .json)
                 echo "Deploying linked service: $linked_service_name"
-                cat "$file"  # Debug JSON content before deployment
+                cat "$file"
 
-                az datafactory linked-service create \\
-                  --factory-name $FACTORY_NAME \\
-                  --resource-group $RESOURCE_GROUP \\
-                  --properties @"$file" \\
+                az datafactory linked-service create \
+                  --factory-name "$FACTORY_NAME" \
+                  --resource-group "$RESOURCE_GROUP" \
+                  --properties @"$file" \
                   --name "$linked_service_name" || exit 1
                 echo "Successfully deployed: $linked_service_name"
               else
