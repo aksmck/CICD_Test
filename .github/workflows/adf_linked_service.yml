@@ -1,4 +1,4 @@
-name: Publish ADF Datasets
+name: Publish ADF Linked Services
 
 on:
   workflow_dispatch:
@@ -45,7 +45,7 @@ jobs:
         uses: tj-actions/changed-files@v37
         with:
           since: "${{ env.DATE }}"
-          files: "dataproducts/${{ env.FUNCTION_NAME }}/dataset/"
+          files: "dataproducts/${{ env.FUNCTION_NAME }}/linkedservice/"
 
       - name: Validate and Debug JSON Files
         run: |
@@ -76,7 +76,7 @@ jobs:
             exit 0
           fi
 
-      - name: Publish ADF Datasets
+      - name: Publish ADF Linked Services  # Correct indentation here
         run: |
           if [[ "$ENVIRONMENT" == "dev" ]]; then
             az login --service-principal --username "${{ secrets.CLIENT }}" --password "${{ secrets.CLIENTSECRET }}" --tenant "${{ secrets.TENANT }}"
@@ -105,25 +105,21 @@ jobs:
             for file in $CHANGED_FILES; do
               echo "Processing file: $file"
               if [[ -f "$file" && "$file" == *.json ]]; then
-                dataset_name=$(basename "$file" .json)
-                echo "Deploying dataset: $dataset_name"
+                linked_service_name=$(basename "$file" .json)
+                echo "Deploying linked service: $linked_service_name"
 
                 # Print the content of the file to verify the JSON structure
                 cat "$file"
                 
                 # Ensure that 'properties' exists and is not null or empty
                 if jq -e '.properties' "$file" > /dev/null; then
-                  # Deploy the dataset using the improved error handling approach
-                  if ! az datafactory dataset create \
+                  # Deploy the linked service
+                  az datafactory linked-service create \
                     --factory-name "$FACTORY_NAME" \
                     --resource-group "$RESOURCE_GROUP" \
-                    --name "$dataset_name" \
-                    --properties @"$file"; then
-                    echo "Error deploying dataset: $dataset_name"
-                    exit 1
-                  else
-                    echo "Successfully deployed: $dataset_name"
-                  fi
+                    --name "$linked_service_name" \
+                    --properties @"$file" || exit 1
+                  echo "Successfully deployed: $linked_service_name"
                 else
                   echo "Error: 'properties' field is missing or empty in the file: $file"
                   exit 1
@@ -133,5 +129,5 @@ jobs:
               fi
             done
           else
-            echo "No dataset changes detected."
+            echo "No linked service changes detected."
           fi
