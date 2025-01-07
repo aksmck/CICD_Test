@@ -76,7 +76,7 @@ jobs:
             exit 0
           fi
 
-      - name: Publish ADF Linked Services
+      - name: Publish ADF Linked Services  # Correct indentation here
         run: |
           if [[ "$ENVIRONMENT" == "dev" ]]; then
             az login --service-principal --username "${{ secrets.CLIENT }}" --password "${{ secrets.CLIENTSECRET }}" --tenant "${{ secrets.TENANT }}"
@@ -107,14 +107,23 @@ jobs:
               if [[ -f "$file" && "$file" == *.json ]]; then
                 linked_service_name=$(basename "$file" .json)
                 echo "Deploying linked service: $linked_service_name"
-                cat "$file"
 
-                az datafactory linked-service create \
-                  --factory-name "$FACTORY_NAME" \
-                  --resource-group "$RESOURCE_GROUP" \
-                  --properties @"$file" \
-                  --name "$linked_service_name" || exit 1
-                echo "Successfully deployed: $linked_service_name"
+                # Print the content of the file to verify the JSON structure
+                cat "$file"
+                
+                # Ensure that 'properties' exists and is not null or empty
+                if jq -e '.properties' "$file" > /dev/null; then
+                  # Deploy the linked service
+                  az datafactory linked-service create \
+                    --factory-name "$FACTORY_NAME" \
+                    --resource-group "$RESOURCE_GROUP" \
+                    --name "$linked_service_name" \
+                    --properties @"$file" || exit 1
+                  echo "Successfully deployed: $linked_service_name"
+                else
+                  echo "Error: 'properties' field is missing or empty in the file: $file"
+                  exit 1
+                fi
               else
                 echo "Skipping invalid file: $file"
               fi
