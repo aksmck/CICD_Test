@@ -1,3 +1,4 @@
+# Main Workflow File
 name: Publish ADF Linked Services
 
 on:
@@ -31,18 +32,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
         with:
-          ref: ${{ github.ref_name }}  # Checkout the branch that triggered the workflow
+          ref: ${{ github.ref_name }}
 
       # Install Azure CLI
       - name: Install Azure CLI
         run: |
           curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 
-      # Debugging step: Validate code structure
-      - name: Validate code structure
+      # Install Azure CLI datafactory extension
+      - name: Install Azure CLI datafactory extension
         run: |
-          echo "Validating the directory structure..."
-          ls -R .
+          az extension add --name datafactory
 
       # Fetch changed linked service files since the provided date from the branch
       - name: Get changed files since provided date
@@ -52,16 +52,35 @@ jobs:
           since: "${{ env.DATE }}"
           files: "dataproducts/${{ env.FUNCTION_NAME }}/linkedservice/"
 
-      # Print out the changed files
-      - name: Print changed files
+      # Debugging step to validate files and their contents
+      - name: Validate and Debug JSON Files
         run: |
-          echo "Changed files since date: ${{ steps.changed-files-since.outputs.all_changed_files }}"
+          CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
+          echo "Changed files: $CHANGED_FILES"
 
-      # Debugging step: List the linkedservice directory
-      - name: List linkedservice directory
-        run: |
-          echo "Listing files in linkedservice directory:"
-          ls -R dataproducts/${{ env.FUNCTION_NAME }}/linkedservice/
+          if [[ -n "$CHANGED_FILES" ]]; then
+            for file in $CHANGED_FILES; do
+              echo "Processing file: $file"
+              if [[ -f "$file" && $file == *.json ]]; then
+                echo "File exists: $file"
+                cat "$file"
+
+                # Validate JSON structure
+                if jq empty "$file"; then
+                  echo "Valid JSON: $file"
+                else
+                  echo "Invalid JSON structure in: $file"
+                  exit 1
+                fi
+              else
+                echo "File not found or invalid: $file"
+                exit 1
+              fi
+            done
+          else
+            echo "No changed files detected."
+            exit 0
+          fi
 
       # Publish ADF Linked Services
       - name: Publish ADF Linked Services
@@ -79,34 +98,35 @@ jobs:
             RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP_QAT }}"
           elif [[ $ENVIRONMENT == 'prod' ]]; then
             az login --service-principal --username "${{ secrets.CLIENT_ID_PROD }}" --password "${{ secrets.CLIENT_SECRET_PROD }}" --tenant "${{ secrets.TENANT_ID_PROD }}"
-            az account set -s ${{ secrets.SUBSCRIPTION_ID_PROD }}
+            az account set -s ${{ secrets.SUBSCRIPTION_ID_PROD }}"
             FACTORY_NAME="${{ secrets.FACTORY_NAME_PROD }}"
             RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP_PROD }}"
           fi
 
           # Confirm authentication worked
-          echo "Confirming Azure authentication..."
-          az account show --query '[name, id, state]'
+          az account show
+          echo "Logged in successfully"
 
-          # Step 1: Deploy Linked Services
+          # Deploy Linked Services
           CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
           echo "Changed files to deploy: $CHANGED_FILES"
 
           if [[ -n "$CHANGED_FILES" ]]; then
             for file in $CHANGED_FILES; do
               echo "Processing file: $file"
-
-              # Check if the file exists and is a JSON file
               if [[ -f "$file" && $file == *.json ]]; then
-                echo "Deploying linked service: $file"
                 linked_service_name=$(basename "$file" .json)
-                echo "Extracted linked service name: $linked_service_name"
+                echo "Deploying linked service: $linked_service_name"
+                cat "$file"  # Debug JSON content before deployment
 
-                # Deploy the linked service
-                az datafactory linked-service create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --properties @"$file" --name "$linked_service_name"
-                echo "Deployment successful for: $file"
+                az datafactory linked-service create \\
+                  --factory-name $FACTORY_NAME \\
+                  --resource-group $RESOURCE_GROUP \\
+                  --properties @"$file" \\
+                  --name "$linked_service_name" || exit 1
+                echo "Successfully deployed: $linked_service_name"
               else
-                echo "Skipping non-JSON or missing file: $file"
+                echo "Skipping invalid file: $file"
               fi
             done
           else
