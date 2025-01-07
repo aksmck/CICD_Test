@@ -1,77 +1,102 @@
-name: Publish ADF LinkedServie
+name: Publish ADF Linked Services
 
-on: 
+on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment to deploy'
-        type: environment
-        required: true  
-      date: 
-        description: 'Deploy changes after a commit date in YYYY-MM-DD format (OPTIONAL)'
+        description: 'Environment'
         type: string
-        default: '1999-01-01'
         required: true
-        
+      function_name:
+        description: 'Data source'
+        type: string
+        required: true
+      adf_linked_services_deployment_steps:
+        description: 'Linked Services deployment steps'
+        type: string
+        required: true
+      date:
+        description: 'Commit date'
+        type: string
+        required: true
+
 env:
   ENVIRONMENT: ${{ inputs.environment }}
   DATE: ${{ inputs.date }}
+  FUNCTION_NAME: ${{ inputs.function_name }}
+  ADF_LINKED_SERVICES_DEPLOYMENT_STEPS: ${{ inputs.adf_linked_services_deployment_steps }}
+  BRANCH: ${{ github.ref_name }}
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-               
+        with:
+          ref: ${{ github.ref_name }}
+
       - name: Install Azure CLI
         run: |
           curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-                  
-      - name: Get changed-files since
+
+      - name: Get changed files since provided date
         id: changed-files-since
         uses: tj-actions/changed-files@v37
         with:
           since: "${{ env.DATE }}"
-          files: "bronze_silver/*/${{ env.ENVIRONMENT }}/linkedService/"
+          files: "dataproducts/${{ env.FUNCTION_NAME }}/linked-services/"
 
-      - name: List all changed files
+      - name: Print changed files
         run: |
-          echo "Env: $ENVIRONMENT"
-          echo "################################"
-          for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
-            echo $file
-          done
-          
-      
-      - name: Publish ADF Pipelines
-        run: |          
+          echo "Changed files since date: ${{ steps.changed-files-since.outputs.all_changed_files }}"
+
+      - name: Publish ADF Linked Services
+        run: |
+          # Authentication for dev, qa, prod
           if [[ $ENVIRONMENT == 'dev' ]]; then
-            az login --service-principal --username "${{ secrets.CLIENT }}" --password ${{ secrets.CLIENTSECRET }} --tenant ${{ secrets.TENANT }}
+            az login --service-principal --username "${{ secrets.CLIENT }}" --password "${{ secrets.CLIENTSECRET }}" --tenant "${{ secrets.TENANT }}"
             az account set -s ${{ secrets.SUBSCRIPTION_ID }}
             FACTORY_NAME="adf-psasdi-westus-dev-01"
             RESOURCE_GROUP="rg-psas-decision-intelligence-westus-dev"
-          elif [[ $ENVIRONMENT == 'QAT' ]]; then
-            az login --service-principal --username "${{ secrets.CLIENT_ID_QAT }}" --password ${{ secrets.CLIENT_SECRET_QAT }} --tenant ${{ secrets.TENANT_ID_QAT }}
-            az account set -s $SUBSCRIPTION_ID_QAT
-            FACTORY_NAME="${{ secrets.FACTORY_NAME_QAT }}
+          elif [[ $ENVIRONMENT == 'qa' ]]; then
+            az login --service-principal --username "${{ secrets.CLIENT_ID_QAT }}" --password "${{ secrets.CLIENT_SECRET_QAT }}" --tenant "${{ secrets.TENANT_ID_QAT }}"
+            az account set -s ${{ secrets.SUBSCRIPTION_ID_QAT }}
+            FACTORY_NAME="${{ secrets.FACTORY_NAME_QAT }}"
             RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP_QAT }}"
-          elif [[ $ENVIRONMENT == 'PROD' ]]; then
-            az login --service-principal --username "${{ secrets.CLIENT_ID_PROD }}" --password ${{ secrets.CLIENT_SECRET_PROD }} --tenant ${{ secrets.TENANT_ID_PROD }}
-            az account set -s $SUBSCRIPTION_ID_PROD
-            FACTORY_NAME="${{ secrets.FACTORY_NAME_PROD }}
+          elif [[ $ENVIRONMENT == 'prod' ]]; then
+            az login --service-principal --username "${{ secrets.CLIENT_ID_PROD }}" --password "${{ secrets.CLIENT_SECRET_PROD }}" --tenant "${{ secrets.TENANT_ID_PROD }}"
+            az account set -s ${{ secrets.SUBSCRIPTION_ID_PROD }}
+            FACTORY_NAME="${{ secrets.FACTORY_NAME_PROD }}"
             RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP_PROD }}"
           fi
-          echo "Logged in"
-          for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
-            if [[ $file == *'.json' ]]; then
-              echo "File: $file"
-              linked_service_=${file##*/}
-              linked_service_name=${linked_service_%.*}
-              echo "Linked Service name: $linked_service_name"
-              #az datafactory linked-service show --factory-name $FACTORY_NAME --name "AzureBlobStorage1" --resource-group $RESOURCE_GROUP
-              az datafactory linked-service create --factory-name $FACTORY_NAME --properties $file --name $linked_service_name --resource-group $RESOURCE_GROUP
-            fi
-          done
-          
+
+          # Confirm authentication worked
+          az account show
+
+          echo "Logged in successfully"
+
+          # Deploy Linked Services
+          if [[ $ADF_LINKED_SERVICES_DEPLOYMENT_STEPS == "all" ]]; then
+            for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
+              if [[ $file == dataproducts/${{ env.FUNCTION_NAME }}/linked-services/* && $file == *".json" ]]; then
+                echo "Deploying linked service: $file"
+                linked_service_name=${file##*/}  # Extract file name
+                linked_service_name=${linked_service_name%.*}  # Remove file extension
+
+                # Use '@' to pass the file content to the az command
+                az datafactory linked-service create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --linked-service @$file --name "$linked_service_name"
+              fi
+            done
+          else
+            folder="dataproducts/${{ env.FUNCTION_NAME }}/linked-services/${{ env.ADF_LINKED_SERVICES_DEPLOYMENT_STEPS }}/"
+            for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
+              if [[ $file == $folder* && $file == *".json" ]]; then
+                echo "Deploying linked service from $ADF_LINKED_SERVICES_DEPLOYMENT_STEPS folder: $file"
+                linked_service_name=${file##*/}
+                linked_service_name=${linked_service_name%.*}
+                az datafactory linked-service create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --linked-service @$file --name "$linked_service_name"
+              fi
+            done
+          fi
