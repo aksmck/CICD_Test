@@ -118,7 +118,7 @@ jobs:
                     --factory-name "$FACTORY_NAME" \
                     --resource-group "$RESOURCE_GROUP" \
                     --name "$linked_service_name" \
-                    --properties @"$file" || exit 1
+                    --properties @"$file"; then
                   echo "Successfully deployed: $linked_service_name"
                 else
                   echo "Error: 'properties' field is missing or empty in the file: $file"
