@@ -1,0 +1,12 @@
+{
+    "name": "AzureSqlDatabase1",
+    "type": "Microsoft.DataFactory/factories/linkedservices",
+    "properties": {
+        "annotations": [],
+        "type": "AzureSqlDatabase",
+        "typeProperties": {
+            "connectionString": "integrated security=False;encrypt=True;connection timeout=30;data source=dealpipeline-dev.database.windows.net;initial catalog=dealPipeline;user id=PSAS_DI_AZURESQL_DEALPIPELINE_DEV",
+            "encryptedCredential": "ew0KICAiVmVyc2lvbiI6ICIyMDE3LTExLTMwIiwNCiAgIlByb3RlY3Rpb25Nb2RlIjogIktleSIsDQogICJTZWNyZXRDb250ZW50VHlwZSI6ICJQbGFpbnRleHQiLA0KICAiQ3JlZGVudGlhbElkIjogIkRBVEFGQUNUT1JZQDBFQkM3REZELUE1RjAtNDY4NC1CMjQwLTFBOEZGODI1MDU5OF8wMWU5MjJlMS1iZDlhLTQxODctODA0My1lMGQ0ZmRjNjM5YzkiDQp9"
+        }
+    }
+}
