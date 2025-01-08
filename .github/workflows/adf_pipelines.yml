@@ -1,4 +1,4 @@
-name: Publish ADF Linked Services
+name: Publish ADF Pipelines
 
 on:
   workflow_dispatch:
@@ -11,6 +11,10 @@ on:
         description: 'Data source'
         type: string
         required: true
+      adf_pipelines_deployment_steps:
+        description: 'Pipeline steps'
+        type: string
+        required: true
       date:
         description: 'Commit date'
         type: string
@@ -20,6 +24,7 @@ env:
   ENVIRONMENT: ${{ inputs.environment }}
   DATE: ${{ inputs.date }}
   FUNCTION_NAME: ${{ inputs.function_name }}
+  ADF_PIPELINES_DEployment_STEPS: ${{ inputs.adf_pipelines_deployment_steps }}
   BRANCH: ${{ github.ref_name }}
 
 jobs:
@@ -27,59 +32,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step to checkout the code from the specified branch
       - name: Checkout code
         uses: actions/checkout@v2
         with:
           ref: ${{ github.ref_name }}
 
-      # Install Azure CLI
       - name: Install Azure CLI
         run: |
           curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 
-      # Install Azure CLI datafactory extension
-      - name: Install Azure CLI datafactory extension
-        run: |
-          az extension add --name datafactory
-
-      # Fetch changed linked service files since the provided date from the branch
       - name: Get changed files since provided date
         id: changed-files-since
         uses: tj-actions/changed-files@v37
         with:
           since: "${{ env.DATE }}"
-          files: "dataproducts/${{ env.FUNCTION_NAME }}/linkedservice/"
+          files: "dataproducts/${{ env.FUNCTION_NAME }}/pipelines/"
 
-      # Print out the changed files
       - name: Print changed files
         run: |
           echo "Changed files since date: ${{ steps.changed-files-since.outputs.all_changed_files }}"
 
-      # Debugging step for file validation
-      - name: Validate JSON Files
+      - name: Publish ADF Pipelines
         run: |
-          CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
-          echo "Changed files: $CHANGED_FILES"
-
-          if [[ -n "$CHANGED_FILES" ]]; then
-            for file in $CHANGED_FILES; do
-              echo "Checking file: $file"
-              if [[ -f "$file" ]]; then
-                echo "File exists: $file"
-                cat "$file"
-              else
-                echo "File not found or empty: $file"
-              fi
-            done
-          else
-            echo "No changed files detected."
-          fi
-
-      # Publish ADF Linked Services
-      - name: Publish ADF Linked Services
-        run: |
-          # Authenticate based on the environment
+          # Authentication for dev, qa, prod
           if [[ $ENVIRONMENT == 'dev' ]]; then
             az login --service-principal --username "${{ secrets.CLIENT }}" --password "${{ secrets.CLIENTSECRET }}" --tenant "${{ secrets.TENANT }}"
             az account set -s ${{ secrets.SUBSCRIPTION_ID }}
@@ -99,34 +74,29 @@ jobs:
 
           # Confirm authentication worked
           az account show
+
           echo "Logged in successfully"
 
-          # Deploy Linked Services
-          CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
-          echo "Changed files to deploy: $CHANGED_FILES"
+          # Deploy pipelines
+          if [[ $ADF_PIPELINES_DEPLOYMENT_STEPS == "all" ]]; then
+            for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
+              if [[ $file == dataproducts/${{ env.FUNCTION_NAME }}/pipelines/* && $file == *".json" ]]; then
+                echo "Deploying pipeline: $file"
+                pipeline_name=${file##*/}  # Extract file name
+                pipeline_name=${pipeline_name%.*}  # Remove file extension
 
-          if [[ -n "$CHANGED_FILES" ]]; then
-            for file in $CHANGED_FILES; do
-              echo "Processing file: $file"
-
-              if [[ -f "$file" && $file == *.json ]]; then
-                echo "Valid JSON file detected: $file"
-                cat "$file"
-
-                linked_service_name=$(basename "$file" .json)
-                echo "Deploying linked service: $linked_service_name"
-
-                az datafactory linked-service create \
-                  --factory-name $FACTORY_NAME \
-                  --resource-group $RESOURCE_GROUP \
-                  --properties @"$file" \
-                  --name "$linked_service_name"
-
-                echo "Deployment successful for: $linked_service_name"
-              else
-                echo "Skipping invalid or missing file: $file"
+                # Use '@' to pass the file content to the az command
+                az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline @$file --name "$pipeline_name"
               fi
             done
           else
-            echo "No linked service changes detected."
+            folder="dataproducts/${{ env.FUNCTION_NAME }}/pipelines/${{ env.ADF_PIPELINES_DEployment_STEPS }}/"
+            for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
+              if [[ $file == $folder* && $file == *".json" ]]; then
+                echo "Deploying pipeline from $ADF_PIPELINES_DEployment_STEPS folder: $file"
+                pipeline_name=${file##*/}
+                pipeline_name=${pipeline_name%.*}
+                az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline @$file --name "$pipeline_name"
+              fi
+            done
           fi
