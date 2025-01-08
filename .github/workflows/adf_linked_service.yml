@@ -76,7 +76,7 @@ jobs:
             exit 0
           fi
 
-      - name: Publish ADF Linked Services  # Correct indentation here
+      - name: Publish ADF Linked Services
         run: |
           if [[ "$ENVIRONMENT" == "dev" ]]; then
             az login --service-principal --username "${{ secrets.CLIENT }}" --password "${{ secrets.CLIENTSECRET }}" --tenant "${{ secrets.TENANT }}"
@@ -113,6 +113,10 @@ jobs:
                 
                 # Ensure that 'properties' exists and is not null or empty
                 if jq -e '.properties' "$file" > /dev/null; then
+                  # Echo the full az command for debugging
+                  echo "Executing command:"
+                  echo "az datafactory linked-service create --factory-name \"$FACTORY_NAME\" --resource-group \"$RESOURCE_GROUP\" --name \"$linked_service_name\" --properties @\"$file\""
+                  
                   # Deploy the linked service
                   az datafactory linked-service create \
                     --factory-name "$FACTORY_NAME" \
