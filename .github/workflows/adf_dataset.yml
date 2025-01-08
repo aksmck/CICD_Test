@@ -76,7 +76,7 @@ jobs:
             exit 0
           fi
 
-      - name: Publish ADF Datasets  # Correct indentation here
+      - name: Publish ADF Datasets
         run: |
           if [[ "$ENVIRONMENT" == "dev" ]]; then
             az login --service-principal --username "${{ secrets.CLIENT }}" --password "${{ secrets.CLIENTSECRET }}" --tenant "${{ secrets.TENANT }}"
@@ -110,16 +110,30 @@ jobs:
 
                 # Print the content of the file to verify the JSON structure
                 cat "$file"
-                
+
                 # Ensure that 'properties' exists and is not null or empty
                 if jq -e '.properties' "$file" > /dev/null; then
-                  # Deploy the dataset
+                  # Create the dataset in ADF
                   az datafactory dataset create \
                     --factory-name "$FACTORY_NAME" \
                     --resource-group "$RESOURCE_GROUP" \
                     --name "$dataset_name" \
-                    --properties "$file" || exit 1
-                  echo "Successfully deployed: $dataset_name"
+                    --properties @"$file" || exit 1
+
+                  # Pass parameters dynamically (for testing, use static values first)
+                  echo "Assigning parameters to dataset: $dataset_name"
+                  az datafactory pipeline create \
+                    --factory-name "$FACTORY_NAME" \
+                    --resource-group "$RESOURCE_GROUP" \
+                    --name "${dataset_name}_pipeline" \
+                    --parameters '{
+                      "target_dir": "static-directory-value",
+                      "target_file_system": "filesystem-value",
+                      "file_path": "static-path-value",
+                      "storage_account_url": "https://staticstorageaccount.blob.core.windows.net"
+                    }' || exit 1
+
+                  echo "Successfully deployed dataset and parameters for: $dataset_name"
                 else
                   echo "Error: 'properties' field is missing or empty in the file: $file"
                   exit 1
