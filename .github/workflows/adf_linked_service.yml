@@ -76,7 +76,7 @@ jobs:
             exit 0
           fi
 
-      - name: Publish ADF Linked Services  # Correct indentation here
+      - name: Publish ADF Linked Services
         run: |
           if [[ "$ENVIRONMENT" == "dev" ]]; then
             az login --service-principal --username "${{ secrets.CLIENT }}" --password "${{ secrets.CLIENTSECRET }}" --tenant "${{ secrets.TENANT }}"
