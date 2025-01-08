@@ -20,6 +20,7 @@ env:
   ENVIRONMENT: ${{ inputs.environment }}
   DATE: ${{ inputs.date }}
   FUNCTION_NAME: ${{ inputs.function_name }}
+  BRANCH: ${{ github.ref_name }}  # Added environment variable for branch
 
 jobs:
   deploy:
@@ -27,6 +28,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+        with:
+          ref: ${{ github.ref_name }}  # Ensure the correct branch is checked out
 
       # Step to get changed files since the specified date
       - name: Get changed files since
