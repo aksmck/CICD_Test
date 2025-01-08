@@ -1,4 +1,4 @@
-name: Publish ADF Linked Services
+name: Deploy Linked Service to ADF
 
 on:
   workflow_dispatch:
@@ -16,118 +16,42 @@ on:
         type: string
         required: true
 
-env:
-  ENVIRONMENT: ${{ inputs.environment }}
-  DATE: ${{ inputs.date }}
-  FUNCTION_NAME: ${{ inputs.function_name }}
-  BRANCH: ${{ github.ref_name }}
-
 jobs:
-  publish:
+  deploy-linked-service:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-        with:
-          ref: ${{ github.ref_name }}
+    # Checkout the repository
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-      - name: Install Azure CLI
-        run: |
-          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+    # Log in to Azure
+    - name: Log in to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Install Azure CLI datafactory extension
-        run: |
-          az extension add --name datafactory
+    # Deploy Linked Service using Azure CLI
+    - name: Deploy Linked Service to ADF
+      env:
+        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+        DATA_FACTORY_NAME: ${{ secrets.ADF_NAME }}
+        ENVIRONMENT: ${{ github.event.inputs.environment }}
+        FUNCTION_NAME: ${{ github.event.inputs.function_name }}
+        DATE: ${{ github.event.inputs.date }}
+      run: |
+        echo "Deploying Linked Service for environment: $ENVIRONMENT, function: $FUNCTION_NAME, date: $DATE"
+        
+        # Set Azure subscription context
+        az account set --subscription $AZURE_SUBSCRIPTION_ID
+        
+        # Assuming you use the function_name to reference different linked service JSON files
+        LINKED_SERVICE_JSON="dataproducts/SA_INSIGHTS/linkedservice/ls_adls_parametrized_1.json"
 
-      - name: Get changed files since provided date
-        id: changed-files-since
-        uses: tj-actions/changed-files@v37
-        with:
-          since: "${{ env.DATE }}"
-          files: "dataproducts/${{ env.FUNCTION_NAME }}/linkedservice/"
-
-      - name: Validate and Debug JSON Files
-        run: |
-          CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
-          echo "Changed files: $CHANGED_FILES"
-
-          if [[ -n "$CHANGED_FILES" ]]; then
-            for file in $CHANGED_FILES; do
-              echo "Processing file: $file"
-              if [[ -f "$file" && "$file" == *.json ]]; then
-                echo "File exists: $file"
-                cat "$file"
-
-                # Validate JSON structure
-                if jq empty "$file"; then
-                  echo "Valid JSON: $file"
-                else
-                  echo "Invalid JSON structure in: $file"
-                  exit 1
-                fi
-              else
-                echo "File not found or invalid: $file"
-                exit 1
-              fi
-            done
-          else
-            echo "No changed files detected."
-            exit 0
-          fi
-
-      - name: Publish ADF Linked Services
-        run: |
-          if [[ "$ENVIRONMENT" == "dev" ]]; then
-            az login --service-principal --username "${{ secrets.CLIENT }}" --password "${{ secrets.CLIENTSECRET }}" --tenant "${{ secrets.TENANT }}"
-            az account set -s "${{ secrets.SUBSCRIPTION_ID }}"
-            FACTORY_NAME="adf-psasdi-westus-dev-01"
-            RESOURCE_GROUP="rg-psas-decision-intelligence-westus-dev"
-          elif [[ "$ENVIRONMENT" == "qa" ]]; then
-            az login --service-principal --username "${{ secrets.CLIENT_ID_QAT }}" --password "${{ secrets.CLIENT_SECRET_QAT }}" --tenant "${{ secrets.TENANT_ID_QAT }}"
-            az account set -s "${{ secrets.SUBSCRIPTION_ID_QAT }}"
-            FACTORY_NAME="${{ secrets.FACTORY_NAME_QAT }}"
-            RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP_QAT }}"
-          elif [[ "$ENVIRONMENT" == "prod" ]]; then
-            az login --service-principal --username "${{ secrets.CLIENT_ID_PROD }}" --password "${{ secrets.CLIENT_SECRET_PROD }}" --tenant "${{ secrets.TENANT_ID_PROD }}"
-            az account set -s "${{ secrets.SUBSCRIPTION_ID_PROD }}"
-            FACTORY_NAME="${{ secrets.FACTORY_NAME_PROD }}"
-            RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP_PROD }}"
-          fi
-
-          az account show
-          echo "Logged in successfully"
-
-          CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
-          echo "Changed files to deploy: $CHANGED_FILES"
-
-          if [[ -n "$CHANGED_FILES" ]]; then
-            for file in $CHANGED_FILES; do
-              echo "Processing file: $file"
-              if [[ -f "$file" && "$file" == *.json ]]; then
-                linked_service_name=$(basename "$file" .json)
-                echo "Deploying linked service: $linked_service_name"
-
-                # Print the content of the file to verify the JSON structure
-                cat "$file"
-                
-                # Ensure that 'properties' exists and is not null or empty
-                if jq -e '.properties' "$file" > /dev/null; then
-                  # Deploy the linked service
-                  az datafactory linked-service create \
-                    --factory-name "$FACTORY_NAME" \
-                    --resource-group "$RESOURCE_GROUP" \
-                    --name "$linked_service_name" \
-                    --properties @"$file" || exit 1
-                  echo "Successfully deployed: $linked_service_name"
-                else
-                  echo "Error: 'properties' field is missing or empty in the file: $file"
-                  exit 1
-                fi
-              else
-                echo "Skipping invalid file: $file"
-              fi
-            done
-          else
-            echo "No linked service changes detected."
-          fi
+        # Deploy Linked Service
+        az datafactory linked-service create \
+          --factory-name $DATA_FACTORY_NAME \
+          --resource-group $RESOURCE_GROUP \
+          --name $FUNCTION_NAME \
+          --properties @$LINKED_SERVICE_JSON
