@@ -1,25 +1,25 @@
-name: Publish ADF Datasets
+name: Publish ADF Linked Services
 
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment (dev, qa, prod)'
+        description: 'Environment'
         type: string
         required: true
       function_name:
-        description: 'Data source function name'
+        description: 'Data source'
         type: string
         required: true
       date:
-        description: 'Commit date for detecting changes'
+        description: 'Commit date'
         type: string
         required: true
 
 env:
   ENVIRONMENT: ${{ inputs.environment }}
-  FUNCTION_NAME: ${{ inputs.function_name }}
   DATE: ${{ inputs.date }}
+  FUNCTION_NAME: ${{ inputs.function_name }}
   BRANCH: ${{ github.ref_name }}
 
 jobs:
@@ -36,29 +36,30 @@ jobs:
         run: |
           curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 
-      - name: Install Azure CLI Data Factory Extension
+      - name: Install Azure CLI datafactory extension
         run: |
           az extension add --name datafactory
 
       - name: Get changed files since provided date
-        id: changed-files
+        id: changed-files-since
         uses: tj-actions/changed-files@v37
         with:
           since: "${{ env.DATE }}"
-          files: "dataproducts/${{ env.FUNCTION_NAME }}/datasets/"
+          files: "dataproducts/${{ env.FUNCTION_NAME }}/linkedservice/"
 
       - name: Validate and Debug JSON Files
         run: |
-          CHANGED_FILES="${{ steps.changed-files.outputs.all_changed_files }}"
+          CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
           echo "Changed files: $CHANGED_FILES"
 
           if [[ -n "$CHANGED_FILES" ]]; then
             for file in $CHANGED_FILES; do
               echo "Processing file: $file"
               if [[ -f "$file" && "$file" == *.json ]]; then
-                echo "Validating file: $file"
+                echo "File exists: $file"
                 cat "$file"
 
+                # Validate JSON structure
                 if jq empty "$file"; then
                   echo "Valid JSON: $file"
                 else
@@ -66,7 +67,8 @@ jobs:
                   exit 1
                 fi
               else
-                echo "Skipping invalid or non-JSON file: $file"
+                echo "File not found or invalid: $file"
+                exit 1
               fi
             done
           else
@@ -74,7 +76,7 @@ jobs:
             exit 0
           fi
 
-      - name: Authenticate with Azure
+      - name: Publish ADF Linked Services  # Correct indentation here
         run: |
           if [[ "$ENVIRONMENT" == "dev" ]]; then
             az login --service-principal --username "${{ secrets.CLIENT }}" --password "${{ secrets.CLIENTSECRET }}" --tenant "${{ secrets.TENANT }}"
@@ -91,41 +93,41 @@ jobs:
             az account set -s "${{ secrets.SUBSCRIPTION_ID_PROD }}"
             FACTORY_NAME="${{ secrets.FACTORY_NAME_PROD }}"
             RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP_PROD }}"
-          else
-            echo "Error: Unsupported environment '$ENVIRONMENT'"
-            exit 1
           fi
+
           az account show
           echo "Logged in successfully"
 
-      - name: Deploy ADF Datasets
-        run: |
-          CHANGED_FILES="${{ steps.changed-files.outputs.all_changed_files }}"
-          echo "Files to deploy: $CHANGED_FILES"
+          CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
+          echo "Changed files to deploy: $CHANGED_FILES"
 
           if [[ -n "$CHANGED_FILES" ]]; then
             for file in $CHANGED_FILES; do
               echo "Processing file: $file"
               if [[ -f "$file" && "$file" == *.json ]]; then
-                dataset_name=$(basename "$file" .json)
-                echo "Deploying dataset: $dataset_name"
-                cat "$file"
+                linked_service_name=$(basename "$file" .json)
+                echo "Deploying linked service: $linked_service_name"
 
+                # Print the content of the file to verify the JSON structure
+                cat "$file"
+                
+                # Ensure that 'properties' exists and is not null or empty
                 if jq -e '.properties' "$file" > /dev/null; then
-                  az datafactory dataset create \
+                  # Deploy the linked service
+                  az datafactory linked-service create \
                     --factory-name "$FACTORY_NAME" \
                     --resource-group "$RESOURCE_GROUP" \
-                    --name "$dataset_name" \
+                    --name "$linked_service_name" \
                     --properties @"$file" || exit 1
-                  echo "Successfully deployed: $dataset_name"
+                  echo "Successfully deployed: $linked_service_name"
                 else
-                  echo "Error: 'properties' field is missing or empty in file: $file"
+                  echo "Error: 'properties' field is missing or empty in the file: $file"
                   exit 1
                 fi
               else
-                echo "Skipping invalid or non-JSON file: $file"
+                echo "Skipping invalid file: $file"
               fi
             done
           else
-            echo "No datasets to deploy."
+            echo "No linked service changes detected."
           fi
