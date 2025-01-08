@@ -1,16 +1,15 @@
 {
-    "name": "ls_adls_parametrized",
-    "type": "Microsoft.DataFactory/factories/linkedservices",
-    "properties": {
-        "parameters": {
-            "storage_account_url": {
-                "type": "string"
-            }
-        },
-        "annotations": [],
-        "type": "AzureBlobFS",
-        "typeProperties": {
-            "url": "@{linkedService().storage_account_url}"
-        }
+  "name": "ls_adls_parametrized",
+  "type": "Microsoft.DataFactory/factories/linkedservices",
+  "properties": {
+    "parameters": {
+      "storage_account_url": {
+        "type": "string"
+      }
+    },
+    "annotations": [],
+    "typeProperties": {
+      "url": "@{linkedService().storage_account_url}"
     }
+  }
 }
