@@ -76,6 +76,25 @@ jobs:
             exit 0
           fi
 
+      - name: Check Role Assignment for Service Principal
+        run: |
+          echo "Checking role assignments for Service Principal..."
+          
+          # Login to Azure using Service Principal credentials
+          if [[ "$ENVIRONMENT" == "dev" ]]; then
+            az login --service-principal --username "${{ secrets.CLIENT }}" --password "${{ secrets.CLIENTSECRET }}" --tenant "${{ secrets.TENANT }}"
+          fi
+
+          az account set -s "${{ secrets.SUBSCRIPTION_ID }}"
+          echo "Logged in successfully"
+          
+          # Replace with your actual SP Object ID (assumed CLIENT ID for now)
+          SP_OBJECT_ID="${{ secrets.CLIENT }}"
+          
+          # Check the role assignments for the service principal
+          echo "Fetching role assignments for SP with Object ID: $SP_OBJECT_ID"
+          az role assignment list --assignee "$SP_OBJECT_ID" --all
+
       - name: Publish ADF Linked Services
         run: |
           if [[ "$ENVIRONMENT" == "dev" ]]; then
