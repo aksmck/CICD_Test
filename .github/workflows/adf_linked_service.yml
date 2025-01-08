@@ -25,7 +25,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    # Log in to Azure
+    # Log in to Azure using the service principal credentials stored in AZURE_CREDENTIALS
     - name: Log in to Azure
       uses: azure/login@v1
       with:
@@ -47,7 +47,7 @@ jobs:
         az account set --subscription $AZURE_SUBSCRIPTION_ID
         
         # Assuming you use the function_name to reference different linked service JSON files
-        LINKED_SERVICE_JSON="dataproducts/SA_INSIGHTS/linkedservice/ls_adls_parametrized_1.json"
+        LINKED_SERVICE_JSON="linked-services/$FUNCTION_NAME-$DATE.json"
 
         # Deploy Linked Service
         az datafactory linked-service create \
