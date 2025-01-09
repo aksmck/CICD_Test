@@ -76,7 +76,7 @@ jobs:
             exit 0
           fi
 
-      - name: Publish ADF Datasets
+      - name: Publish ADF Datasets  # Correct indentation here
         run: |
           if [[ "$ENVIRONMENT" == "dev" ]]; then
             az login --service-principal --username "${{ secrets.CLIENT }}" --password "${{ secrets.CLIENTSECRET }}" --tenant "${{ secrets.TENANT }}"
@@ -108,32 +108,26 @@ jobs:
                 dataset_name=$(basename "$file" .json)
                 echo "Deploying dataset: $dataset_name"
 
-                # Print the content of the file to verify the JSON structure
-                cat "$file"
-
-                # Ensure that 'properties' exists and is not null or empty
+                # Ensure that the 'properties' field is not empty
                 if jq -e '.properties' "$file" > /dev/null; then
-                  # Create the dataset in ADF
+                  # Read the parameter values dynamically from environment or elsewhere
+                  TARGET_DIR="${{ inputs.target_dir }}"
+                  TARGET_FILE_SYSTEM="${{ inputs.target_file_system }}"
+                  FILE_PATH="${{ inputs.file_path }}"
+                  STORAGE_ACCOUNT_URL="${{ inputs.storage_account_url }}"
+
+                  # Pass these values into the dataset creation command
                   az datafactory dataset create \
                     --factory-name "$FACTORY_NAME" \
                     --resource-group "$RESOURCE_GROUP" \
                     --name "$dataset_name" \
-                    --properties @"$file" || exit 1
+                    --properties @"$file" \
+                    --parameters target_dir="$TARGET_DIR" \
+                    --parameters target_file_system="$TARGET_FILE_SYSTEM" \
+                    --parameters file_path="$FILE_PATH" \
+                    --parameters storage_account_url="$STORAGE_ACCOUNT_URL" || exit 1
 
-                  # Pass parameters dynamically (for testing, use static values first)
-                  echo "Assigning parameters to dataset: $dataset_name"
-                  az datafactory pipeline create \
-                    --factory-name "$FACTORY_NAME" \
-                    --resource-group "$RESOURCE_GROUP" \
-                    --name "${dataset_name}_pipeline" \
-                    --parameters '{
-                      "target_dir": "static-directory-value",
-                      "target_file_system": "filesystem-value",
-                      "file_path": "static-path-value",
-                      "storage_account_url": "https://staticstorageaccount.blob.core.windows.net"
-                    }' || exit 1
-
-                  echo "Successfully deployed dataset and parameters for: $dataset_name"
+                  echo "Successfully deployed: $dataset_name"
                 else
                   echo "Error: 'properties' field is missing or empty in the file: $file"
                   exit 1
