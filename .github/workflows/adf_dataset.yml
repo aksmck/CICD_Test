@@ -76,7 +76,7 @@ jobs:
             exit 0
           fi
 
-      - name: Publish ADF Datasets  # Correct indentation here
+      - name: Publish ADF Datasets
         run: |
           if [[ "$ENVIRONMENT" == "dev" ]]; then
             az login --service-principal --username "${{ secrets.CLIENT }}" --password "${{ secrets.CLIENTSECRET }}" --tenant "${{ secrets.TENANT }}"
@@ -108,25 +108,17 @@ jobs:
                 dataset_name=$(basename "$file" .json)
                 echo "Deploying dataset: $dataset_name"
 
-                # Ensure that the 'properties' field is not empty
-                if jq -e '.properties' "$file" > /dev/null; then
-                  # Read the parameter values dynamically from environment or elsewhere
-                  TARGET_DIR="${{ inputs.target_dir }}"
-                  TARGET_FILE_SYSTEM="${{ inputs.target_file_system }}"
-                  FILE_PATH="${{ inputs.file_path }}"
-                  STORAGE_ACCOUNT_URL="${{ inputs.storage_account_url }}"
+                # Print the content of the file to verify the JSON structure
+                cat "$file"
 
-                  # Pass these values into the dataset creation command
+                # Ensure that 'properties' exists and is not null or empty
+                if jq -e '.properties' "$file" > /dev/null; then
+                  # Deploy the dataset
                   az datafactory dataset create \
                     --factory-name "$FACTORY_NAME" \
                     --resource-group "$RESOURCE_GROUP" \
                     --name "$dataset_name" \
-                    --properties @"$file" \
-                    --parameters target_dir="$TARGET_DIR" \
-                    --parameters target_file_system="$TARGET_FILE_SYSTEM" \
-                    --parameters file_path="$FILE_PATH" \
-                    --parameters storage_account_url="$STORAGE_ACCOUNT_URL" || exit 1
-
+                    --properties @"$file" --debug || exit 1
                   echo "Successfully deployed: $dataset_name"
                 else
                   echo "Error: 'properties' field is missing or empty in the file: $file"
