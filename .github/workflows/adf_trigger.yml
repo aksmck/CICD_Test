@@ -20,7 +20,6 @@ env:
   ENVIRONMENT: ${{ inputs.environment }}
   DATE: ${{ inputs.date }}
   FUNCTION_NAME: ${{ inputs.function_name }}
-  ADF_TRIGGERS_DEPLOYMENT_STEPS: ${{ inputs.adf_triggers_deployment_steps }}
   BRANCH: ${{ github.ref_name }}
 
 jobs:
@@ -52,7 +51,7 @@ jobs:
         run: |
           CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
           if [[ -z "$CHANGED_FILES" ]]; then
-            echo "No changes detected for ${{ env.ADF_TRIGGERS_DEPLOYMENT_STEPS }} after ${{ env.DATE }}."
+            echo "No changes detected for triggers after ${{ env.DATE }}."
             exit 0
           fi
 
@@ -82,26 +81,24 @@ jobs:
           echo "Logged in successfully"
 
           # Deploy triggers
-          if [[ $ADF_TRIGGERS_DEPLOYMENT_STEPS == "all" ]]; then
-            for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
-              if [[ $file == dataproducts/${{ env.FUNCTION_NAME }}/triggers/* && $file == *".json" ]]; then
-                echo "Deploying trigger: $file"
-                trigger_name=${file##*/}  # Extract file name
-                trigger_name=${trigger_name%.*}  # Remove file extension
-
-                # Use '@' to pass the file content to the az command
-                az datafactory trigger create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --trigger @$file --name "$trigger_name"
-              fi
-            done
-          else
-            echo "Deploying triggers for ${{ env.ADF_TRIGGERS_DEPLOYMENT_STEPS }} folder"
-            folder="dataproducts/${{ env.FUNCTION_NAME }}/triggers/${{ env.ADF_TRIGGERS_DEPLOYMENT_STEPS }}/"
-            for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
-              if [[ $file == $folder* && $file == *".json" ]]; then
-                echo "Deploying trigger from $ADF_TRIGGERS_DEPLOYMENT_STEPS folder: $file"
-                trigger_name=${file##*/}
-                trigger_name=${trigger_name%.*}
-                az datafactory trigger create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --trigger @$file --name "$trigger_name"
-              fi
-            done
+          CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
+          if [[ -z "$CHANGED_FILES" ]]; then
+            echo "No triggers to deploy."
+            exit 0
           fi
+
+          echo "Changed files: $CHANGED_FILES"
+
+          for file in $CHANGED_FILES; do
+            if [[ -f "$file" && "$file" == *".json" ]]; then
+              echo "Deploying trigger: $file"
+              trigger_name=$(basename "$file" .json)
+              az datafactory trigger create-or-update \
+                --factory-name "$FACTORY_NAME" \
+                --resource-group "$RESOURCE_GROUP" \
+                --name "$trigger_name" \
+                --file @"$file"
+            else
+              echo "Skipping non-JSON file: $file"
+            fi
+          done
