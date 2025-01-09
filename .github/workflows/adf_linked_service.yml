@@ -45,7 +45,7 @@ jobs:
         uses: tj-actions/changed-files@v37
         with:
           since: "${{ env.DATE }}"
-          files: "dataproducts/${{ env.FUNCTION_NAME }}/linkedservices"
+          files: "dataproducts/${{ env.FUNCTION_NAME }}/linkedservice"
 
       - name: Validate and Debug JSON Files
         run: |
@@ -115,7 +115,7 @@ jobs:
                 # Ensure that 'properties' exists and is not null or empty
                 if jq -e '.properties' "$file" > /dev/null; then
                   # Build URL dynamically based on subscription ID, resource group, factory name, and linked service name
-                  URL="https://management.azure.com/subscriptions/${{ secrets.SUBSCRIPTION_ID }}/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.DataFactory/factories/$FACTORY_NAME/linkedservices/$linked_service_name?api-version=2018-06-01"
+                  URL="https://management.azure.com/subscriptions/${{ secrets.SUBSCRIPTION_ID }}/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.DataFactory/factories/$FACTORY_NAME/linkedservice/$linked_service_name?api-version=2018-06-01"
 
                   # Deploy the linked service using az rest
                   az rest --method PUT \
