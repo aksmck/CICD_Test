@@ -108,26 +108,20 @@ jobs:
                 dataset_name=$(basename "$file" .json)
                 echo "Deploying dataset: $dataset_name"
 
-                # Print the content of the file to verify the JSON structure
+                # Read the JSON content into a variable
+                JSON_CONTENT=$(cat "$file" | jq -c .)
+
+                # Print the JSON content to verify
                 echo "JSON content of the file $file:"
-                cat "$file"
+                echo "$JSON_CONTENT"
 
-                # Ensure that 'properties' exists and is not null or empty
-                if jq -e '.properties' "$file" > /dev/null; then
-                  echo "JSON properties to be deployed:"
-                  jq '.properties' "$file"
-
-                  # Deploy the dataset
-                  az datafactory dataset create \
-                    --factory-name "$FACTORY_NAME" \
-                    --resource-group "$RESOURCE_GROUP" \
-                    --name "$dataset_name" \
-                    --properties @"$file" --debug || exit 1
-                  echo "Successfully deployed: $dataset_name"
-                else
-                  echo "Error: 'properties' field is missing or empty in the file: $file"
-                  exit 1
-                fi
+                # Deploy the dataset with the JSON content
+                az datafactory dataset create \
+                  --factory-name "$FACTORY_NAME" \
+                  --resource-group "$RESOURCE_GROUP" \
+                  --name "$dataset_name" \
+                  --properties "$JSON_CONTENT" --debug || exit 1
+                echo "Successfully deployed: $dataset_name"
               else
                 echo "Skipping invalid file: $file"
               fi
