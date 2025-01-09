@@ -90,6 +90,7 @@ jobs:
               fi
             done
           else
+            echo "deploying pipeline for $env.ADF_PIPELINES_DEployment_STEPS"
             folder="dataproducts/${{ env.FUNCTION_NAME }}/pipelines/${{ env.ADF_PIPELINES_DEployment_STEPS }}/"
             for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
               if [[ $file == $folder* && $file == *".json" ]]; then
