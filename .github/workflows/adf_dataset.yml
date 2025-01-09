@@ -109,10 +109,14 @@ jobs:
                 echo "Deploying dataset: $dataset_name"
 
                 # Print the content of the file to verify the JSON structure
+                echo "JSON content of the file $file:"
                 cat "$file"
 
                 # Ensure that 'properties' exists and is not null or empty
                 if jq -e '.properties' "$file" > /dev/null; then
+                  echo "JSON properties to be deployed:"
+                  jq '.properties' "$file"
+
                   # Deploy the dataset
                   az datafactory dataset create \
                     --factory-name "$FACTORY_NAME" \
