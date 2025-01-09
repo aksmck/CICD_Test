@@ -1,9 +1,0 @@
-{
-  "name": "ls_adls_parametrized",
-  "type": "Microsoft.DataFactory/factories/linkedservices",
-  "properties": {
-    "typeProperties": {
-      "url": "@{linkedService().storage_account_url}"
-    }
-  }
-}
