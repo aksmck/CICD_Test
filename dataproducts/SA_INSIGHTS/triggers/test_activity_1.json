@@ -1,0 +1,77 @@
+{
+    "name": "test_activity_1",
+    "properties": {
+        "description": "Frequency : Daily\nTime: 6 AM CST",
+        "annotations": [],
+        "runtimeState": "Stopped",
+        "pipelines": [
+            {
+                "pipelineReference": {
+                    "referenceName": "p_2000_brnz_slvr_snowflake_iqvia_sales",
+                    "type": "PipelineReference"
+                },
+                "parameters": {
+                    "Env": "Dev"
+                }
+            },
+            {
+                "pipelineReference": {
+                    "referenceName": "p_2001_brnz_slvr_snowflake_sap_fico",
+                    "type": "PipelineReference"
+                }
+            },
+            {
+                "pipelineReference": {
+                    "referenceName": "p_2002_brnz_slvr_snowflake_sap_master_customer",
+                    "type": "PipelineReference"
+                }
+            },
+            {
+                "pipelineReference": {
+                    "referenceName": "p_2003_brnz_slvr_snowflake_sap_master_contracts",
+                    "type": "PipelineReference"
+                }
+            },
+            {
+                "pipelineReference": {
+                    "referenceName": "p_2004_brnz_slvr_snowflake_sap_master_products",
+                    "type": "PipelineReference"
+                }
+            },
+            {
+                "pipelineReference": {
+                    "referenceName": "p_4000_brnz_slvr_sql75_sap_master",
+                    "type": "PipelineReference"
+                },
+                "parameters": {
+                    "Env": "Dev",
+                    "write_mode": "append"
+                }
+            },
+            {
+                "pipelineReference": {
+                    "referenceName": "p_300_brnz_slvr_sfdc_sfdc_crm",
+                    "type": "PipelineReference"
+                },
+                "parameters": {
+                    "Env": "Dev",
+                    "write_mode": "append"
+                }
+            }
+        ],
+        "type": "ScheduleTrigger",
+        "typeProperties": {
+            "recurrence": {
+                "frequency": "Day",
+                "interval": 1,
+                "startTime": "2023-06-08T00:00:00",
+                "timeZone": "Central Standard Time",
+                "schedule": {
+                    "hours": [
+                        6
+                    ]
+                }
+            }
+        }
+    }
+}
