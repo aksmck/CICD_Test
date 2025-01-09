@@ -78,7 +78,6 @@ jobs:
 
       - name: Publish ADF Datasets
         run: |
-          # Authenticate to Azure based on the environment
           if [[ "$ENVIRONMENT" == "dev" ]]; then
             az login --service-principal --username "${{ secrets.CLIENT }}" --password "${{ secrets.CLIENTSECRET }}" --tenant "${{ secrets.TENANT }}"
             az account set -s "${{ secrets.SUBSCRIPTION_ID }}"
@@ -96,7 +95,6 @@ jobs:
             RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP_PROD }}"
           fi
 
-          # Confirm authentication
           az account show
           echo "Logged in successfully"
 
@@ -113,22 +111,17 @@ jobs:
                 # Read the JSON content into a variable
                 JSON_CONTENT=$(cat "$file" | jq -c .)
 
-                # Parse JSON string (optional step, but ensures it's valid JSON)
-                # You can add more logic here if you need to manipulate or validate JSON more rigorously
-                echo "Parsing JSON content"
-                PARSED_JSON=$(echo "$JSON_CONTENT" | jq '.')
+                # Print the JSON content to verify
+                echo "JSON content of the file $file:"
+                echo "$JSON_CONTENT"
 
-                # Print the parsed JSON content to verify
-                echo "Parsed JSON content of the file $file:"
-                echo "$PARSED_JSON"
-
-                # Deploy the dataset with the parsed JSON content
+                # Deploy the dataset with the JSON content
                 az datafactory dataset create \
                   --factory-name "$FACTORY_NAME" \
                   --resource-group "$RESOURCE_GROUP" \
                   --name "$dataset_name" \
-                  --properties "$PARSED_JSON"
-                echo "Successfully deployed dataset: $dataset_name"
+                  --properties '$JSON_CONTENT'
+                echo "Successfully deployed: $dataset_name"
               else
                 echo "Skipping invalid file: $file"
               fi
