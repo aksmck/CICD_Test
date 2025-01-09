@@ -1,10 +1,14 @@
-name: Deploy Linked Services
+name: Publish ADF Linked Services
 
 on:
   workflow_dispatch:
     inputs:
       environment:
         description: 'Environment'
+        type: string
+        required: true
+      function_name:
+        description: 'Data source'
         type: string
         required: true
       date:
@@ -15,10 +19,11 @@ on:
 env:
   ENVIRONMENT: ${{ inputs.environment }}
   DATE: ${{ inputs.date }}
+  FUNCTION_NAME: ${{ inputs.function_name }}
   BRANCH: ${{ github.ref_name }}
 
 jobs:
-  deploy:
+  publish:
     runs-on: ubuntu-latest
 
     steps:
@@ -31,7 +36,7 @@ jobs:
         run: |
           curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 
-      - name: Install Azure CLI Data Factory extension
+      - name: Install Azure CLI datafactory extension
         run: |
           az extension add --name datafactory
 
@@ -39,73 +44,92 @@ jobs:
         id: changed-files-since
         uses: tj-actions/changed-files@v37
         with:
-          since: ${{ env.DATE }}
-          files: dataproducts/${{ env.ENVIRONMENT }}/linkedservice
+          since: "${{ env.DATE }}"
+          files: "dataproducts/${{ env.FUNCTION_NAME }}/linkedservice"
 
-      - name: Validate and debug changed files
+      - name: Validate and Debug JSON Files
         run: |
-          CHANGED_FILES=$(echo "${{ steps.changed-files-since.outputs.all_changed_files }}" | tr '\n' ' ')
-          echo "Files to process: $CHANGED_FILES"
+          CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
+          echo "Changed files: $CHANGED_FILES"
 
-          if [[ -z "$CHANGED_FILES" ]]; then
+          if [[ -n "$CHANGED_FILES" ]]; then
+            for file in $CHANGED_FILES; do
+              echo "Processing file $file"
+              if [[ -f "$file" && "$file" == *.json ]]; then
+                echo "File exists: $file"
+                cat "$file"
+
+                # Validate JSON structure
+                if jq empty "$file"; then
+                  echo "Valid JSON: $file"
+                else
+                  echo "Invalid JSON structure in $file"
+                  exit 1
+                fi
+              else
+                echo "File not found or invalid: $file"
+                exit 1
+              fi
+            done
+          else
             echo "No changed files detected."
             exit 0
           fi
 
-      - name: Deploy Linked Services
+      - name: Publish ADF Linked Services
         run: |
-          CHANGED_FILES=$(echo "${{ steps.changed-files-since.outputs.all_changed_files }}" | tr '\n' ' ')
-          echo "Files to process: $CHANGED_FILES"
-
-          # Authenticate with Azure based on the environment
           if [[ $ENVIRONMENT == 'dev' ]]; then
-            az login --service-principal --username "${{ secrets.CLIENT_DEV }}" --password "${{ secrets.CLIENTSECRET_DEV }}" --tenant "${{ secrets.TENANT_DEV }}"
-            az account set -s "${{ secrets.SUBSCRIPTION_ID_DEV }}"
-            FACTORY_NAME="adf-dev-factory"
-            RESOURCE_GROUP="rg-dev-resource-group"
+            az login --service-principal --username "${{ secrets.CLIENT }}" --password "${{ secrets.CLIENTSECRET }}" --tenant "${{ secrets.TENANT }}"
+            az account set -s ${{ secrets.SUBSCRIPTION_ID }}
+            FACTORY_NAME="adf-psasdi-westus-dev-01"
+            RESOURCE_GROUP="rg-psas-decision-intelligence-westus-dev"
           elif [[ $ENVIRONMENT == 'qa' ]]; then
-            az login --service-principal --username "${{ secrets.CLIENT_QA }}" --password "${{ secrets.CLIENTSECRET_QA }}" --tenant "${{ secrets.TENANT_QA }}"
-            az account set -s "${{ secrets.SUBSCRIPTION_ID_QA }}"
-            FACTORY_NAME="adf-qa-factory"
-            RESOURCE_GROUP="rg-qa-resource-group"
+            az login --service-principal --username "${{ secrets.CLIENT_ID_QAT }}" --password "${{ secrets.CLIENT_SECRET_QAT }}" --tenant "${{ secrets.TENANT_ID_QAT }}"
+            az account set -s ${{ secrets.SUBSCRIPTION_ID_QAT }}
+            FACTORY_NAME="${{ secrets.FACTORY_NAME_QAT }}"
+            RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP_QAT }}"
           elif [[ $ENVIRONMENT == 'prod' ]]; then
-            az login --service-principal --username "${{ secrets.CLIENT_PROD }}" --password "${{ secrets.CLIENTSECRET_PROD }}" --tenant "${{ secrets.TENANT_PROD }}"
-            az account set -s "${{ secrets.SUBSCRIPTION_ID_PROD }}"
-            FACTORY_NAME="adf-prod-factory"
-            RESOURCE_GROUP="rg-prod-resource-group"
-          else
-            echo "Invalid environment: $ENVIRONMENT"
-            exit 1
+            az login --service-principal --username "${{ secrets.CLIENT_ID_PROD }}" --password "${{ secrets.CLIENT_SECRET_PROD }}" --tenant "${{ secrets.TENANT_ID_PROD }}"
+            az account set -s ${{ secrets.SUBSCRIPTION_ID_PROD }}
+            FACTORY_NAME="${{ secrets.FACTORY_NAME_PROD }}"
+            RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP_PROD }}"
           fi
 
+          # Confirm authentication worked
           az account show
-          echo "Logged in successfully."
+          echo "Logged in successfully"
 
-          for file in $CHANGED_FILES; do
-            if [[ -f "$file" ]]; then
+          CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
+          echo "Changed files to deploy: $CHANGED_FILES"
+
+          if [[ -n "$CHANGED_FILES" ]]; then
+            for file in $CHANGED_FILES; do
               echo "Processing file $file"
-              chmod +r "$file"
+              if [[ -f "$file" && "$file" == *.json ]]; then
+                linked_service_name=$(basename "$file" .json)
+                echo "Deploying linked service $linked_service_name"
 
-              linked_service_name=$(basename "$file" .json)
-              echo "Deploying linked service $linked_service_name"
+                # Print the content of the file to verify the JSON structure
+                cat "$file"
 
-              # Construct the URL for deployment
-              URL="https://management.azure.com/subscriptions/${{ secrets.SUBSCRIPTION_ID_DEV }}/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.DataFactory/factories/$FACTORY_NAME/linkedservices/$linked_service_name?api-version=2018-06-01"
-              echo "Deploying linked service to URL: $URL"
+                # Ensure that 'properties' exists and is not null or empty
+                if jq -e '.properties' "$file" > /dev/null; then
+                  # Build URL dynamically based on subscription ID, resource group, factory name, and linked service name
+                  URL="https://management.azure.com/subscriptions/${{ secrets.SUBSCRIPTION_ID }}/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.DataFactory/factories/$FACTORY_NAME/linkedservice/$linked_service_name?api-version=2018-06-01"
 
-              # Deploy the linked service and capture the response
-              response=$(az rest --method PUT --url "$URL" --body @"$file" 2>&1)
-              echo "Response: $response"
-
-              # Check for errors in the response
-              if echo "$response" | grep -q 'error'; then
-                echo "Error deploying linked service: $response"
-                exit 1
+                  # Deploy the linked service using az rest
+                  az rest --method PUT \
+                    --url "$URL" \
+                    --body @"$file"
+                  echo "Successfully deployed $linked_service_name"
+                else
+                  echo "Error: 'properties' field is missing or empty in the file $file"
+                  exit 1
+                fi
               else
-                echo "Successfully deployed linked service $linked_service_name"
+                echo "Skipping invalid file $file"
               fi
-            else
-              echo "File $file not found or invalid"
-              exit 1
-            fi
-          done
+            done
+          else
+            echo "No linked service changes detected."
+          fi
