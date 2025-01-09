@@ -1,5 +1,5 @@
 {
-    "name": "as_devops_1",
+    "name": "as_devops",
     "properties": {
         "description": "for T_IMS_SEQ_CUST_MAP_CURR",
         "linkedServiceName": {
