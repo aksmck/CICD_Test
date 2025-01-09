@@ -108,48 +108,23 @@ jobs:
                 dataset_name=$(basename "$file" .json)
                 echo "Deploying dataset: $dataset_name"
 
-                # Build JSON content dynamically using environment variables and inputs
-                JSON_CONTENT=$(jq -n \
-                  --arg name "$dataset_name" \
-                  --arg description "for T_IMS_SEQ_CUST_MAP_CURR" \
-                  --arg linkedServiceReference "LS_PSAS_DI_SQL_75" \
-                  --arg type "SqlServerTable" \
-                  --arg schema "dbo" \
-                  --arg table "T_IMS_SEQ_CUST_MAP_CURR" \
-                  '{
-                    name: "as_devops",
-                    properties: {
-                      description: $description,
-                      linkedServiceName: {
-                        referenceName: $linkedServiceReference,
-                        type: "LinkedServiceReference"
-                      },
-                      annotations: [],
-                      type: $type,
-                      schema: [
-                        {"name": "IMS_SEQ_ID", "type": "varchar"},
-                        {"name": "MCK_CUST_NUM", "type": "varchar"},
-                        {"name": "QI_OUTLET_NM", "type": "varchar"}
-                        # Add all other schema fields here
-                      ],
-                      typeProperties: {
-                        schema: $schema,
-                        table: $table
-                      }
-                    },
-                    type: "Microsoft.DataFactory/factories/datasets"
-                  }')
+                # Print the content of the file to verify the JSON structure
+                cat "$file"
+                
+                # Ensure that 'properties' exists and is not null or empty
+                if jq -e '.properties' "$file" > /dev/null; then
+                  # Build URL dynamically based on subscription ID, resource group, factory name, and dataset name
+                  URL="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.DataFactory/factories/$FACTORY_NAME/datasets/$dataset_name?api-version=2018-06-01"
 
-                # Print the JSON content to verify
-                echo "Generated JSON content:"
-                echo "$JSON_CONTENT"
-
-                # Deploy dataset with the generated JSON content using az rest
-                az rest --method PUT \
-                  --url "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.DataFactory/factories/$FACTORY_NAME/datasets/$dataset_name?api-version=2018-06-01" \
-                  --body "$JSON_CONTENT"
-
-                echo "Successfully deployed dataset: $dataset_name"
+                  # Deploy the dataset using az rest
+                  az rest --method PUT \
+                    --url "$URL" \
+                    --body @"$file" || exit 1
+                  echo "Successfully deployed: $dataset_name"
+                else
+                  echo "Error: 'properties' field is missing or empty in the file: $file"
+                  exit 1
+                fi
               else
                 echo "Skipping invalid file: $file"
               fi
