@@ -52,6 +52,14 @@ jobs:
         run: |
           echo "Changed files since date: ${{ steps.changed-files-since.outputs.all_changed_files }}"
 
+      - name: Check if there are changes for ADF pipeline steps
+        run: |
+          CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
+          if [[ -z "$CHANGED_FILES" ]]; then
+            echo "No changes detected for ${{ env.ADF_PIPELINES_DEPLOYMENT_STEPS }} after ${{ env.DATE }}."
+            exit 0
+          fi
+
       - name: Publish ADF Pipelines
         run: |
           # Authentication for dev, qa, prod
@@ -90,7 +98,7 @@ jobs:
               fi
             done
           else
-            echo "deploying pipeline for ${{ env.ADF_PIPELINES_DEPLOYMENT_STEPS }}"
+            echo "Deploying pipeline for ${{ env.ADF_PIPELINES_DEPLOYMENT_STEPS }} folder"
             folder="dataproducts/${{ env.FUNCTION_NAME }}/pipelines/${{ env.ADF_PIPELINES_DEPLOYMENT_STEPS }}/"
             for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
               if [[ $file == $folder* && $file == *".json" ]]; then
