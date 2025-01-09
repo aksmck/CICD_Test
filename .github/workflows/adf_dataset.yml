@@ -144,12 +144,13 @@ jobs:
                 echo "Generated JSON content:"
                 echo "$JSON_CONTENT"
 
-                # Deploy dataset with the generated JSON content
-                az datafactory dataset create \
+                # Deploy dataset with the generated JSON content by piping it into the az command
+                echo "$JSON_CONTENT" | az datafactory dataset create \
                   --factory-name "$FACTORY_NAME" \
                   --resource-group "$RESOURCE_GROUP" \
                   --name "$dataset_name" \
-                  --properties "$JSON_CONTENT"
+                  --properties @-
+
                 echo "Successfully deployed dataset: $dataset_name"
               else
                 echo "Skipping invalid file: $file"
