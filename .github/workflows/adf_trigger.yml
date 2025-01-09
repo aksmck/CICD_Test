@@ -97,7 +97,7 @@ jobs:
             if [[ -f "$file" && "$file" == *".json" ]]; then
               echo "Deploying trigger: $file"
               trigger_name=$(basename "$file" .json)
-              az datafactory trigger create-or-update \
+              az datafactory trigger create \
                 --factory-name "$FACTORY_NAME" \
                 --resource-group "$RESOURCE_GROUP" \
                 --name "$trigger_name" \
