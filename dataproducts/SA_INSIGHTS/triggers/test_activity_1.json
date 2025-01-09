@@ -1,77 +1,120 @@
-{
-    "name": "test_activity_1",
-    "properties": {
-        "description": "Frequency : Daily\nTime: 6 AM CST",
-        "annotations": [],
-        "runtimeState": "Stopped",
-        "pipelines": [
-            {
-                "pipelineReference": {
-                    "referenceName": "p_2000_brnz_slvr_snowflake_iqvia_sales",
-                    "type": "PipelineReference"
-                },
-                "parameters": {
-                    "Env": "Dev"
-                }
-            },
-            {
-                "pipelineReference": {
-                    "referenceName": "p_2001_brnz_slvr_snowflake_sap_fico",
-                    "type": "PipelineReference"
-                }
-            },
-            {
-                "pipelineReference": {
-                    "referenceName": "p_2002_brnz_slvr_snowflake_sap_master_customer",
-                    "type": "PipelineReference"
-                }
-            },
-            {
-                "pipelineReference": {
-                    "referenceName": "p_2003_brnz_slvr_snowflake_sap_master_contracts",
-                    "type": "PipelineReference"
-                }
-            },
-            {
-                "pipelineReference": {
-                    "referenceName": "p_2004_brnz_slvr_snowflake_sap_master_products",
-                    "type": "PipelineReference"
-                }
-            },
-            {
-                "pipelineReference": {
-                    "referenceName": "p_4000_brnz_slvr_sql75_sap_master",
-                    "type": "PipelineReference"
-                },
-                "parameters": {
-                    "Env": "Dev",
-                    "write_mode": "append"
-                }
-            },
-            {
-                "pipelineReference": {
-                    "referenceName": "p_300_brnz_slvr_sfdc_sfdc_crm",
-                    "type": "PipelineReference"
-                },
-                "parameters": {
-                    "Env": "Dev",
-                    "write_mode": "append"
-                }
-            }
-        ],
-        "type": "ScheduleTrigger",
-        "typeProperties": {
-            "recurrence": {
-                "frequency": "Day",
-                "interval": 1,
-                "startTime": "2025-01-09T06:30:00",
-                "timeZone": "Central Standard Time",
-                "schedule": {
-                    "hours": [
-                        6
-                    ]
-                }
-            }
-        }
-    }
-}
+name: Publish ADF Triggers
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment'
+        type: string
+        required: true
+      function_name:
+        description: 'Data source'
+        type: string
+        required: true
+      date:
+        description: 'Commit date'
+        type: string
+        required: true
+
+env:
+  ENVIRONMENT: ${{ inputs.environment }}
+  DATE: ${{ inputs.date }}
+  FUNCTION_NAME: ${{ inputs.function_name }}
+  BRANCH: ${{ github.ref_name }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Install Azure CLI
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
+      - name: Install jq (for JSON parsing)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Get changed files since provided date
+        id: changed-files-since
+        uses: tj-actions/changed-files@v37
+        with:
+          since: "${{ env.DATE }}"
+          files: "dataproducts/${{ env.FUNCTION_NAME }}/triggers/"
+
+      - name: Print changed files
+        run: |
+          echo "Changed files since date: ${{ steps.changed-files-since.outputs.all_changed_files }}"
+
+      - name: Check if there are changes for ADF trigger steps
+        run: |
+          CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
+          if [[ -z "$CHANGED_FILES" ]]; then
+            echo "No changes detected for triggers after ${{ env.DATE }}."
+            exit 0
+          fi
+
+      - name: Publish ADF Triggers
+        run: |
+          # Authentication for dev, qa, prod
+          if [[ $ENVIRONMENT == 'dev' ]]; then
+            az login --service-principal --username "${{ secrets.CLIENT }}" --password "${{ secrets.CLIENTSECRET }}" --tenant "${{ secrets.TENANT }}"
+            az account set -s ${{ secrets.SUBSCRIPTION_ID }}
+            FACTORY_NAME="adf-psasdi-westus-dev-01"
+            RESOURCE_GROUP="rg-psas-decision-intelligence-westus-dev"
+          elif [[ $ENVIRONMENT == 'qa' ]]; then
+            az login --service-principal --username "${{ secrets.CLIENT_ID_QAT }}" --password "${{ secrets.CLIENT_SECRET_QAT }}" --tenant "${{ secrets.TENANT_ID_QAT }}"
+            az account set -s ${{ secrets.SUBSCRIPTION_ID_QAT }}
+            FACTORY_NAME="${{ secrets.FACTORY_NAME_QAT }}"
+            RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP_QAT }}"
+          elif [[ $ENVIRONMENT == 'prod' ]]; then
+            az login --service-principal --username "${{ secrets.CLIENT_ID_PROD }}" --password "${{ secrets.CLIENT_SECRET_PROD }}" --tenant "${{ secrets.TENANT_ID_PROD }}"
+            az account set -s ${{ secrets.SUBSCRIPTION_ID_PROD }}
+            FACTORY_NAME="${{ secrets.FACTORY_NAME_PROD }}"
+            RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP_PROD }}"
+          fi
+
+          # Confirm authentication worked
+          az account show
+          echo "Logged in successfully"
+
+          CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
+          if [[ -z "$CHANGED_FILES" ]]; then
+            echo "No triggers to deploy."
+            exit 0
+          fi
+
+          # Loop through changed files
+          for file in $CHANGED_FILES; do
+            if [[ -f "$file" && "$file" == *".json" ]]; then
+              echo "Deploying trigger: $file"
+              
+              # Check if the trigger JSON has a valid type
+              trigger_type=$(jq -r '.properties.type' "$file")
+              if [[ "$trigger_type" == "null" || -z "$trigger_type" ]]; then
+                echo "Invalid trigger type in $file. Skipping deployment."
+                continue
+              fi
+
+              # Get trigger name
+              trigger_name=$(basename "$file" .json)
+
+              # Read the trigger properties as JSON
+              trigger_properties=$(cat "$file")
+
+              # Deploy the trigger using the proper 'create' command
+              az datafactory trigger create \
+                --factory-name "$FACTORY_NAME" \
+                --resource-group "$RESOURCE_GROUP" \
+                --name "$trigger_name" \
+                --properties "$trigger_properties"  # Pass the content of the trigger as JSON
+            else
+              echo "Skipping non-JSON file: $file"
+            fi
+          done
