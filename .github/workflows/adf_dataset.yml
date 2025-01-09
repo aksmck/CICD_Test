@@ -114,7 +114,7 @@ jobs:
                 # Ensure that 'properties' exists and is not null or empty
                 if jq -e '.properties' "$file" > /dev/null; then
                   # Build URL dynamically based on subscription ID, resource group, factory name, and dataset name
-                  URL="https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.DataFactory/factories/$FACTORY_NAME/datasets/$dataset_name?api-version=2018-06-01"
+                  URL="https://management.azure.com/subscriptions/${{ secrets.SUBSCRIPTION_ID }}/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.DataFactory/factories/$FACTORY_NAME/datasets/$dataset_name?api-version=2018-06-01"
 
                   # Deploy the dataset using az rest
                   az rest --method PUT \
