@@ -120,7 +120,7 @@ jobs:
                   --factory-name "$FACTORY_NAME" \
                   --resource-group "$RESOURCE_GROUP" \
                   --name "$dataset_name" \
-                  --properties '$JSON_CONTENT'
+                  --properties "{\"type\":\"AzureBlob\",\"linkedServiceName\":{\"type\":\"LinkedServiceReference\",\"referenceName\":\"exampleLinkedService\"},\"parameters\":{\"MyFileName\":{\"type\":\"String\"},\"MyFolderPath\":{\"type\":\"String\"}},\"typeProperties\":{\"format\":{\"type\":\"TextFormat\"},\"fileName\":{\"type\":\"Expression\",\"value\":\"@dataset().MyFileName\"},\"folderPath\":{\"type\":\"Expression\",\"value\":\"@dataset().MyFolderPath\"}}}"
                 echo "Successfully deployed: $dataset_name"
               else
                 echo "Skipping invalid file: $file"
