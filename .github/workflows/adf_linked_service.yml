@@ -44,23 +44,23 @@ jobs:
         id: changed-files-since
         uses: tj-actions/changed-files@v37
         with:
-          since: "${{ env.DATE }}"
-          files: "dataproducts/${{ env.FUNCTION_NAME }}/linkedservice"
+          since: ${{ env.DATE }}
+          files: dataproducts/${{ env.FUNCTION_NAME }}/linkedservice
 
       - name: Validate and Debug JSON Files
         run: |
-          CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
+          CHANGED_FILES=${{ steps.changed-files-since.outputs.all_changed_files }}
           echo "Changed files: $CHANGED_FILES"
 
-          if [[ -n "$CHANGED_FILES" ]]; then
+          if [[ -n $CHANGED_FILES ]]; then
             for file in $CHANGED_FILES; do
               echo "Processing file $file"
-              if [[ -f "$file" && "$file" == *.json ]]; then
+              if [[ -f $file && $file == *.json ]]; then
                 echo "File exists: $file"
-                cat "$file"
+                cat $file
 
                 # Validate JSON structure
-                if jq empty "$file"; then
+                if jq empty $file; then
                   echo "Valid JSON: $file"
                 else
                   echo "Invalid JSON structure in $file"
@@ -78,50 +78,58 @@ jobs:
 
       - name: Publish ADF Linked Services
         run: |
-          if [[ $ENVIRONMENT == 'dev' ]]; then
-            az login --service-principal --username "${{ secrets.CLIENT }}" --password "${{ secrets.CLIENTSECRET }}" --tenant "${{ secrets.TENANT }}"
+          if [[ $ENVIRONMENT == dev ]]; then
+            az login --service-principal --username ${{ secrets.CLIENT }} --password ${{ secrets.CLIENTSECRET }} --tenant ${{ secrets.TENANT }}
             az account set -s ${{ secrets.SUBSCRIPTION_ID }}
-            FACTORY_NAME="adf-psasdi-westus-dev-01"
-            RESOURCE_GROUP="rg-psas-decision-intelligence-westus-dev"
-          elif [[ $ENVIRONMENT == 'qa' ]]; then
-            az login --service-principal --username "${{ secrets.CLIENT_ID_QAT }}" --password "${{ secrets.CLIENT_SECRET_QAT }}" --tenant "${{ secrets.TENANT_ID_QAT }}"
+            FACTORY_NAME=adf-psasdi-westus-dev-01
+            RESOURCE_GROUP=rg-psas-decision-intelligence-westus-dev
+          elif [[ $ENVIRONMENT == qa ]]; then
+            az login --service-principal --username ${{ secrets.CLIENT_ID_QAT }} --password ${{ secrets.CLIENT_SECRET_QAT }} --tenant ${{ secrets.TENANT_ID_QAT }}
             az account set -s ${{ secrets.SUBSCRIPTION_ID_QAT }}
-            FACTORY_NAME="${{ secrets.FACTORY_NAME_QAT }}"
-            RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP_QAT }}"
-          elif [[ $ENVIRONMENT == 'prod' ]]; then
-            az login --service-principal --username "${{ secrets.CLIENT_ID_PROD }}" --password "${{ secrets.CLIENT_SECRET_PROD }}" --tenant "${{ secrets.TENANT_ID_PROD }}"
+            FACTORY_NAME=${{ secrets.FACTORY_NAME_QAT }}
+            RESOURCE_GROUP=${{ secrets.RESOURCE_GROUP_QAT }}
+          elif [[ $ENVIRONMENT == prod ]]; then
+            az login --service-principal --username ${{ secrets.CLIENT_ID_PROD }} --password ${{ secrets.CLIENT_SECRET_PROD }} --tenant ${{ secrets.TENANT_ID_PROD }}
             az account set -s ${{ secrets.SUBSCRIPTION_ID_PROD }}
-            FACTORY_NAME="${{ secrets.FACTORY_NAME_PROD }}"
-            RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP_PROD }}"
+            FACTORY_NAME=${{ secrets.FACTORY_NAME_PROD }}
+            RESOURCE_GROUP=${{ secrets.RESOURCE_GROUP_PROD }}
           fi
 
-          # Confirm authentication worked
           az account show
           echo "Logged in successfully"
 
-          CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
+          CHANGED_FILES=${{ steps.changed-files-since.outputs.all_changed_files }}
           echo "Changed files to deploy: $CHANGED_FILES"
 
-          if [[ -n "$CHANGED_FILES" ]]; then
+          if [[ -n $CHANGED_FILES ]]; then
             for file in $CHANGED_FILES; do
               echo "Processing file $file"
-              if [[ -f "$file" && "$file" == *.json ]]; then
-                linked_service_name=$(basename "$file" .json)
+              if [[ -f $file && $file == *.json ]]; then
+                linked_service_name=$(basename $file .json)
                 echo "Deploying linked service $linked_service_name"
 
                 # Print the content of the file to verify the JSON structure
-                cat "$file"
-
+                cat $file
+                
                 # Ensure that 'properties' exists and is not null or empty
-                if jq -e '.properties' "$file" > /dev/null; then
+                if jq -e '.properties' $file >/dev/null; then
                   # Build URL dynamically based on subscription ID, resource group, factory name, and linked service name
-                  URL="https://management.azure.com/subscriptions/${{ secrets.SUBSCRIPTION_ID }}/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.DataFactory/factories/$FACTORY_NAME/linkedservice/$linked_service_name?api-version=2018-06-01"
+                  URL="https://management.azure.com/subscriptions/${{ secrets.SUBSCRIPTION_ID }}/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.DataFactory/factories/$FACTORY_NAME/linkedservices/$linked_service_name?api-version=2018-06-01"
 
+                  # Print the constructed URL for debugging purposes
+                  echo "Deploying linked service to URL: $URL"
+                  
                   # Deploy the linked service using az rest
-                  az rest --method PUT \
-                    --url "$URL" \
-                    --body @"$file"
-                  echo "Successfully deployed $linked_service_name"
+                  response=$(az rest --method PUT --url "$URL" --body @"$file" 2>&1)
+                  echo "Response: $response"
+
+                  # Check if the deployment was successful
+                  if echo "$response" | grep -q 'error'; then
+                    echo "Error deploying linked service: $response"
+                    exit 1
+                  else
+                    echo "Successfully deployed linked service $linked_service_name"
+                  fi
                 else
                   echo "Error: 'properties' field is missing or empty in the file $file"
                   exit 1
