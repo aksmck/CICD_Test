@@ -165,4 +165,4 @@ jobs:
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}, "function_name": "${{ inputs.function_name }}"}}' \
-            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_triggers.yml/dispatches
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_trigger.yml/dispatches
