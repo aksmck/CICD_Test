@@ -120,7 +120,7 @@ jobs:
                   --factory-name "$FACTORY_NAME" \
                   --resource-group "$RESOURCE_GROUP" \
                   --name "$dataset_name" \
-                  --properties $JSON_CONTENT
+                  --properties "$JSON_CONTENT"
                 echo "Successfully deployed: $dataset_name"
               else
                 echo "Skipping invalid file: $file"
