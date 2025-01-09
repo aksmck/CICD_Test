@@ -108,20 +108,49 @@ jobs:
                 dataset_name=$(basename "$file" .json)
                 echo "Deploying dataset: $dataset_name"
 
-                # Read the JSON content into a variable
-                JSON_CONTENT=$(cat "$file" | jq -c .)
+                # Build JSON content dynamically using environment variables and inputs
+                JSON_CONTENT=$(jq -n \
+                  --arg name "$dataset_name" \
+                  --arg description "for T_IMS_SEQ_CUST_MAP_CURR" \
+                  --arg linkedServiceReference "LS_PSAS_DI_SQL_75" \
+                  --arg type "SqlServerTable" \
+                  --arg schema "dbo" \
+                  --arg table "T_IMS_SEQ_CUST_MAP_CURR" \
+                  '{
+                    name: $name,
+                    properties: {
+                      description: $description,
+                      linkedServiceName: {
+                        referenceName: $linkedServiceReference,
+                        type: "LinkedServiceReference"
+                      },
+                      annotations: [],
+                      type: $type,
+                      schema: [
+                        {"name": "IMS_SEQ_ID", "type": "varchar"},
+                        {"name": "MCK_CUST_NUM", "type": "varchar"},
+                        {"name": "QI_OUTLET_NM", "type": "varchar"}
+                        # Add all other schema fields here
+                      ],
+                      typeProperties: {
+                        schema: $schema,
+                        table: $table
+                      }
+                    },
+                    type: "Microsoft.DataFactory/factories/datasets"
+                  }')
 
                 # Print the JSON content to verify
-                echo "JSON content of the file $file:"
+                echo "Generated JSON content:"
                 echo "$JSON_CONTENT"
 
-                # Deploy the dataset with the JSON content
+                # Deploy dataset with the generated JSON content
                 az datafactory dataset create \
                   --factory-name "$FACTORY_NAME" \
                   --resource-group "$RESOURCE_GROUP" \
                   --name "$dataset_name" \
-                  --properties "{\"name\":\"as_devops\",\"properties\":{\"description\":\"for T_IMS_SEQ_CUST_MAP_CURR\",\"linkedServiceName\":{\"referenceName\":\"LS_PSAS_DI_SQL_75\",\"type\":\"LinkedServiceReference\"},\"annotations\":[],\"type\":\"SqlServerTable\",\"schema\":[{\"name\":\"IMS_SEQ_ID\",\"type\":\"varchar\"},{\"name\":\"MCK_CUST_NUM\",\"type\":\"varchar\"},{\"name\":\"QI_OUTLET_NM\",\"type\":\"varchar\"},{\"name\":\"QI_ADDRESS\",\"type\":\"varchar\"},{\"name\":\"QI_CITY\",\"type\":\"varchar\"},{\"name\":\"QI_STATE\",\"type\":\"varchar\"},{\"name\":\"QI_ZIP\",\"type\":\"varchar\"},{\"name\":\"FILE_DATE\",\"type\":\"datetime\",\"precision\":23,\"scale\":3},{\"name\":\"LOAD_DATE\",\"type\":\"datetime\",\"precision\":23,\"scale\":3},{\"name\":\"CUST_ACCT_ID\",\"type\":\"char\"},{\"name\":\"CUST_ACCT_NAM\",\"type\":\"char\"},{\"name\":\"CUST_NUM\",\"type\":\"char\"},{\"name\":\"HOME_DC_ID\",\"type\":\"char\"},{\"name\":\"ACCT_DLVRY_ST_ABRV\",\"type\":\"char\"},{\"name\":\"ISMC_RGN\",\"type\":\"varchar\"},{\"name\":\"ISMC_RGN_NAME\",\"type\":\"varchar\"},{\"name\":\"mhs_rgn\",\"type\":\"varchar\"},{\"name\":\"mhs_rgn_name\",\"type\":\"varchar\"},{\"name\":\"NCPDP\",\"type\":\"char\"},{\"name\":\"ACTIVE_CUST_IND\",\"type\":\"char\"},{\"name\":\"ACCT_SVC_ELIG_END_DT\",\"type\":\"datetime\",\"precision\":23,\"scale\":3},{\"name\":\"OS_ACCT\",\"type\":\"char\"},{\"name\":\"CUST_BUS_TYP_CD\",\"type\":\"char\"},{\"name\":\"NATL_GRP_CD\",\"type\":\"char\"},{\"name\":\"NATL_GRP_NAM\",\"type\":\"varchar\"},{\"name\":\"NATL_SUB_GRP_CD\",\"type\":\"char\"},{\"name\":\"NATL_SUB_GRP_NAM\",\"type\":\"char\"},{\"name\":\"CUST_CHN_ID\",\"type\":\"char\"},{\"name\":\"CUST_CHN_NAM\",\"type\":\"char\"},{\"name\":\"ISMC_CUST_GRP\",\"type\":\"varchar\"},{\"name\":\"MHS_CUST_GRP\",\"type\":\"varchar\"},{\"name\":\"DFLT_CUST_GRP\",\"type\":\"varchar\"},{\"name\":\"CUST_GRP\",\"type\":\"varchar\"},{\"name\":\"CUST_GRP_PARENT\",\"type\":\"varchar\"},{\"name\":\"cust_cls_cd\",\"type\":\"char\"},{\"name\":\"FPA_SEG\",\"type\":\"varchar\"},{\"name\":\"LKG_SEG\",\"type\":\"varchar\"},{\"name\":\"PHS_ACCT\",\"type\":\"varchar\"},{\"name\":\"BG_ID\",\"type\":\"nvarchar\"},{\"name\":\"BG_DSCR\",\"type\":\"nvarchar\"},{\"name\":\"NEW_REGION\",\"type\":\"varchar\"},{\"name\":\"RNK\",\"type\":\"bigint\",\"precision\":19},{\"name\":\"UPDATE_DTS\",\"type\":\"datetime\",\"precision\":23,\"scale\":3}],\"typeProperties\":{\"schema\":\"dbo\",\"table\":\"T_IMS_SEQ_CUST_MAP_CURR\"}}}"
-                echo "Successfully deployed: $dataset_name"
+                  --properties "$JSON_CONTENT"
+                echo "Successfully deployed dataset: $dataset_name"
               else
                 echo "Skipping invalid file: $file"
               fi
