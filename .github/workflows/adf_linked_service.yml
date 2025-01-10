@@ -78,6 +78,7 @@ jobs:
 
       - name: Publish ADF Linked Services
         run: |
+          # Authenticate based on the environment
           if [[ $ENVIRONMENT == dev ]]; then
             az login --service-principal --username ${{ secrets.CLIENT }} --password ${{ secrets.CLIENTSECRET }} --tenant ${{ secrets.TENANT }}
             az account set -s ${{ secrets.SUBSCRIPTION_ID }}
@@ -110,7 +111,7 @@ jobs:
 
                 # Print the content of the file to verify the JSON structure
                 cat $file
-                
+
                 # Ensure that 'properties' exists and is not null or empty
                 if jq -e '.properties' $file >/dev/null; then
                   # Build URL dynamically based on subscription ID, resource group, factory name, and linked service name
@@ -118,9 +119,12 @@ jobs:
 
                   # Print the constructed URL for debugging purposes
                   echo "Deploying linked service to URL: $URL"
-                  
-                  # Deploy the linked service using az rest
-                  response=$(az rest --method PUT --url "$URL" --body @"$file" 2>&1)
+
+                  # Use curl to deploy the linked service
+                  token=$(az account get-access-token --query 'accessToken' -o tsv)
+                  response=$(curl -X PUT -H "Content-Type: application/json" \
+                      -H "Authorization: Bearer $token" \
+                      -d @"$file" "$URL" 2>&1)
                   echo "Response: $response"
 
                   # Check if the deployment was successful
