@@ -1,5 +1,5 @@
 {
-    "name": "AzureDatabricksDeltaLake111",
+    "name": "AazureDatabricksDeltaLake111",
     "type": "Microsoft.DataFactory/factories/linkedservices",
     "properties": {
         "annotations": [],
