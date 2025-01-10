@@ -1,0 +1,14 @@
+{
+    "name": "aa_ls_edp_psas_di_gpo_dev",
+    "type": "Microsoft.DataFactory/factories/linkedservices",
+    "properties": {
+        "annotations": [],
+        "type": "AzureDatabricks",
+        "typeProperties": {
+            "domain": "https://adb-8448106390191619.19.azuredatabricks.net",
+            "authentication": "MSI",
+            "workspaceResourceId": "/subscriptions/9b2ca75b-f2c1-4028-8282-6b7af27cb338/resourceGroups/rg-psas-decision-intelligence-westus-dev/providers/Microsoft.Databricks/workspaces/dbw-psasdi-dev-01",
+            "existingClusterId": "1107-142109-zuywtc0e"
+        }
+    }
+}
