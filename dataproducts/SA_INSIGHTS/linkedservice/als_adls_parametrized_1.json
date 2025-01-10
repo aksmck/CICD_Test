@@ -1,5 +1,5 @@
 {
-    "name": "ls_adls_parametrized_1",
+    "name": "als_adls_parametrized_1",
     "type": "Microsoft.DataFactory/factories/linkedservices",
     "properties": {
         "parameters": {
