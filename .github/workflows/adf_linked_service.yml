@@ -49,32 +49,32 @@ jobs:
 
       - name: Validate and Debug JSON Files
         run: |
-          CHANGED_FILES=${{ steps.changed-files-since.outputs.all_changed_files }}
+          CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
           echo "Changed files: $CHANGED_FILES"
 
-          if [[ -n $CHANGED_FILES ]]; then
-            for file in $CHANGED_FILES; do
-              echo "Processing file $file"
-              if [[ -f $file && $file == *.json ]]; then
-                echo "File exists: $file"
-                cat $file
-
-                # Validate JSON structure
-                if jq empty $file; then
-                  echo "Valid JSON: $file"
-                else
-                  echo "Invalid JSON structure in $file"
-                  exit 1
-                fi
-              else
-                echo "File not found or invalid: $file"
-                exit 1
-              fi
-            done
-          else
+          if [[ -z "$CHANGED_FILES" ]]; then
             echo "No changed files detected."
             exit 0
           fi
+
+          for file in $CHANGED_FILES; do
+            echo "Processing file $file"
+            if [[ -f "$file" && "$file" == *.json ]]; then
+              echo "Validating file: $file"
+              cat "$file"
+
+              # Validate JSON structure
+              if jq empty "$file"; then
+                echo "Valid JSON: $file"
+              else
+                echo "Invalid JSON structure in $file"
+                exit 1
+              fi
+            else
+              echo "Skipping invalid or missing file: $file"
+              exit 1
+            fi
+          done
 
       - name: Publish ADF Linked Services
         run: |
@@ -99,49 +99,45 @@ jobs:
           az account show
           echo "Logged in successfully"
 
-          CHANGED_FILES=${{ steps.changed-files-since.outputs.all_changed_files }}
-          echo "Changed files to deploy: $CHANGED_FILES"
+          CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
+          echo "Files to deploy: $CHANGED_FILES"
 
-          if [[ -n $CHANGED_FILES ]]; then
-            for file in $CHANGED_FILES; do
-              echo "Processing file $file"
-              if [[ -f $file && $file == *.json ]]; then
-                linked_service_name=$(basename $file .json)
-                echo "Deploying linked service $linked_service_name"
+          if [[ -z "$CHANGED_FILES" ]]; then
+            echo "No linked service changes detected."
+            exit 0
+          fi
 
-                # Print the content of the file to verify the JSON structure
-                cat $file
+          for file in $CHANGED_FILES; do
+            echo "Processing file $file"
+            if [[ -f "$file" && "$file" == *.json ]]; then
+              linked_service_name=$(basename "$file" .json)
+              echo "Deploying linked service: $linked_service_name"
 
-                # Ensure that 'properties' exists and is not null or empty
-                if jq -e '.properties' $file >/dev/null; then
-                  # Build URL dynamically based on subscription ID, resource group, factory name, and linked service name
-                  URL="https://management.azure.com/subscriptions/${{ secrets.SUBSCRIPTION_ID }}/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.DataFactory/factories/$FACTORY_NAME/linkedservices/$linked_service_name?api-version=2018-06-01"
+              # Print the content of the file
+              cat "$file"
 
-                  # Print the constructed URL for debugging purposes
-                  echo "Deploying linked service to URL: $URL"
+              # Validate 'properties' field
+              if jq -e '.properties' "$file" >/dev/null; then
+                URL="https://management.azure.com/subscriptions/${{ secrets.SUBSCRIPTION_ID }}/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.DataFactory/factories/$FACTORY_NAME/linkedservices/$linked_service_name?api-version=2018-06-01"
 
-                  # Use curl to deploy the linked service
-                  token=$(az account get-access-token --query 'accessToken' -o tsv)
-                  response=$(curl -X PUT -H "Content-Type: application/json" \
-                      -H "Authorization: Bearer $token" \
-                      -d @"$file" "$URL" 2>&1)
-                  echo "Response: $response"
+                echo "Deploying to URL: $URL"
+                token=$(az account get-access-token --query 'accessToken' -o tsv)
+                response=$(curl -X PUT -H "Content-Type: application/json" \
+                    -H "Authorization: Bearer $token" \
+                    -d @"$file" "$URL" 2>&1)
+                echo "Response: $response"
 
-                  # Check if the deployment was successful
-                  if echo "$response" | grep -q 'error'; then
-                    echo "Error deploying linked service: $response"
-                    exit 1
-                  else
-                    echo "Successfully deployed linked service $linked_service_name"
-                  fi
-                else
-                  echo "Error: 'properties' field is missing or empty in the file $file"
+                if echo "$response" | grep -q 'error'; then
+                  echo "Error deploying $linked_service_name: $response"
                   exit 1
+                else
+                  echo "Successfully deployed $linked_service_name"
                 fi
               else
-                echo "Skipping invalid file $file"
+                echo "Error: 'properties' field missing in $file"
+                exit 1
               fi
-            done
-          else
-            echo "No linked service changes detected."
-          fi
+            else
+              echo "Skipping invalid file: $file"
+            fi
+          done
