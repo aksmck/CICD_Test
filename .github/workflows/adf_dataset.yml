@@ -82,7 +82,7 @@ jobs:
                     if [[ -n "$value" ]]; then
                       echo "Replacing placeholder: $$${key} with value: $value"
 
-                      # Replace the placeholders in the dataset JSON file
+                      # Update jq substitution to replace $$key with actual value
                       jq --arg key "$key" --arg value "$value" \
                          'walk(if type == "string" then gsub("\\$\\$" + $key; $value) else . end)' \
                          "$file" > "${file}.updated"
