@@ -61,6 +61,10 @@ on:
         description: 'Deploy ADF Triggers'
         type: boolean
         required: false
+      deploy_dataflows:
+        description: 'Deploy ADF Dataflows'
+        type: boolean
+        required: false
 
 env:
   ENVIRONMENT: ${{ inputs.environment }}
@@ -103,11 +107,11 @@ jobs:
             exit 1
           fi
 
-      - name: Validate Linked Services and Datasets Deployment
+      - name: Validate Deployment Inputs
         run: |
-          if [[ "${{ inputs.deploy_linked_service }}" == "true" || "${{ inputs.deploy_datasets }}" == "true" ]]; then
+          if [[ "${{ inputs.deploy_linked_service }}" == "true" || "${{ inputs.deploy_datasets }}" == "true" || "${{ inputs.deploy_dataflows }}" == "true" ]]; then
             if [[ "${{ inputs.function_name }}" == "none" ]]; then
-              echo "If deploying linked services or datasets, a valid function name must be provided."
+              echo "If deploying linked services, datasets, or dataflows, a valid function name must be provided."
               exit 1
             fi
           fi
@@ -166,3 +170,12 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "function_name": "${{ inputs.function_name }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_trigger.yml/dispatches
+
+      # Trigger ADF Dataflows Deployment
+      - name: Trigger ADF Dataflows Deployment
+        if: ${{ inputs.deploy_dataflows == true }}
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "function_name": "${{ inputs.function_name }}"}}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataflows.yml/dispatches
