@@ -73,12 +73,19 @@ jobs:
 
                 # Check if the variables file exists
                 if [[ -f "$VARIABLES_FILE" ]]; then
+                  echo "Variables file found: $VARIABLES_FILE"
+
                   # Read the JSON file into a variable
                   VARIABLES_JSON=$(cat "$VARIABLES_FILE")
+
+                  echo "Content of variables.json:"
+                  echo "$VARIABLES_JSON"  # Show the content of variables.json
 
                   # Loop through all keys in the variables JSON and replace any corresponding placeholders in the dataset file
                   for key in $(echo "$VARIABLES_JSON" | jq -r 'keys[]'); do
                     value=$(echo "$VARIABLES_JSON" | jq -r ".${key}")
+                    echo "Key: $key, Value: $value"  # Log the key-value pairs
+
                     if [[ -n "$value" ]]; then
                       echo "Replacing placeholder: $$${key} with value: $value"
 
@@ -88,6 +95,9 @@ jobs:
                          "$file" > "${file}.updated"
 
                       mv "${file}.updated" "$file"
+                      echo "Updated file: $file"
+                    else
+                      echo "No value found for placeholder: $$${key}. Skipping replacement."
                     fi
                   done
                 else
