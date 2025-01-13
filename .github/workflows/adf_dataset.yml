@@ -69,7 +69,7 @@ jobs:
 
                 # Replace environment-specific variables in the JSON
                 echo "Replacing placeholders in $file"
-                VARIABLES_FILE="path/to/variables.json"
+                VARIABLES_FILE="dataproducts/variables.json"
 
                 # Check if the variables file exists
                 if [[ -f "$VARIABLES_FILE" ]]; then
