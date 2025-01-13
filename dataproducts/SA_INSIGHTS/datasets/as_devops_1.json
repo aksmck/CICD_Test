@@ -3,7 +3,7 @@
     "properties": {
         "description": "for T_IMS_SEQ_CUST_MAP_CURR",
         "linkedServiceName": {
-            "referenceName": "LS_PSAS_DI_SQL_75",
+            "referenceName": "$$referenceName",
             "type": "LinkedServiceReference"
         },
         "annotations": [],
