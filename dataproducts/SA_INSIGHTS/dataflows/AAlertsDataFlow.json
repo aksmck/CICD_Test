@@ -1,5 +1,5 @@
 {
-    "name": "AAlerts Data Flow",
+    "name": "AAlertsDataFlow",
     "properties": {
         "type": "MappingDataFlow",
         "typeProperties": {
