@@ -36,7 +36,7 @@ jobs:
         run: |
           curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 
-      - name: Install Azure Data Factory extension
+      - name: Install Azure CLI datafactory extension
         run: |
           az extension add --name datafactory
 
@@ -44,70 +44,100 @@ jobs:
         id: changed-files-since
         uses: tj-actions/changed-files@v37
         with:
-          since: "${{ env.DATE }}"
-          files: "dataproducts/${{ env.FUNCTION_NAME }}/triggers/"
+          since: ${{ env.DATE }}
+          files: dataproducts/${{ env.FUNCTION_NAME }}/trigger
 
-      - name: Print changed files
-        run: |
-          echo "Changed files since date: ${{ steps.changed-files-since.outputs.all_changed_files }}"
-
-      - name: Check if there are changes for ADF trigger steps
+      - name: Validate and Debug JSON Files
         run: |
           CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
+          echo "Changed files: $CHANGED_FILES"
+
           if [[ -z "$CHANGED_FILES" ]]; then
-            echo "No changes detected for triggers after ${{ env.DATE }}."
+            echo "No changed files detected."
             exit 0
           fi
+
+          for file in $CHANGED_FILES; do
+            echo "Processing file $file"
+            if [[ -f "$file" && "$file" == *.json ]]; then
+              echo "Validating file: $file"
+              cat "$file"
+
+              # Validate JSON structure
+              if jq empty "$file"; then
+                echo "Valid JSON: $file"
+              else
+                echo "Invalid JSON structure in $file"
+                exit 1
+              fi
+            else
+              echo "Skipping invalid or missing file: $file"
+              exit 1
+            fi
+          done
 
       - name: Publish ADF Triggers
         run: |
-          # Authentication for dev, qa, prod
-          if [[ $ENVIRONMENT == 'dev' ]]; then
-            az login --service-principal --username "${{ secrets.CLIENT }}" --password "${{ secrets.CLIENTSECRET }}" --tenant "${{ secrets.TENANT }}"
+          # Authenticate based on the environment
+          if [[ $ENVIRONMENT == dev ]]; then
+            az login --service-principal --username ${{ secrets.CLIENT }} --password ${{ secrets.CLIENTSECRET }} --tenant ${{ secrets.TENANT }}
             az account set -s ${{ secrets.SUBSCRIPTION_ID }}
-            FACTORY_NAME="adf-psasdi-westus-dev-01"
-            RESOURCE_GROUP="rg-psas-decision-intelligence-westus-dev"
-          elif [[ $ENVIRONMENT == 'qa' ]]; then
-            az login --service-principal --username "${{ secrets.CLIENT_ID_QAT }}" --password "${{ secrets.CLIENT_SECRET_QAT }}" --tenant "${{ secrets.TENANT_ID_QAT }}"
+            FACTORY_NAME=adf-psasdi-westus-dev-01
+            RESOURCE_GROUP=rg-psas-decision-intelligence-westus-dev
+          elif [[ $ENVIRONMENT == qa ]]; then
+            az login --service-principal --username ${{ secrets.CLIENT_ID_QAT }} --password ${{ secrets.CLIENT_SECRET_QAT }} --tenant ${{ secrets.TENANT_ID_QAT }}
             az account set -s ${{ secrets.SUBSCRIPTION_ID_QAT }}
-            FACTORY_NAME="${{ secrets.FACTORY_NAME_QAT }}"
-            RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP_QAT }}"
-          elif [[ $ENVIRONMENT == 'prod' ]]; then
-            az login --service-principal --username "${{ secrets.CLIENT_ID_PROD }}" --password "${{ secrets.CLIENT_SECRET_PROD }}" --tenant "${{ secrets.TENANT_ID_PROD }}"
+            FACTORY_NAME=${{ secrets.FACTORY_NAME_QAT }}
+            RESOURCE_GROUP=${{ secrets.RESOURCE_GROUP_QAT }}
+          elif [[ $ENVIRONMENT == prod ]]; then
+            az login --service-principal --username ${{ secrets.CLIENT_ID_PROD }} --password ${{ secrets.CLIENT_SECRET_PROD }} --tenant ${{ secrets.TENANT_ID_PROD }}
             az account set -s ${{ secrets.SUBSCRIPTION_ID_PROD }}
-            FACTORY_NAME="${{ secrets.FACTORY_NAME_PROD }}"
-            RESOURCE_GROUP="${{ secrets.RESOURCE_GROUP_PROD }}"
+            FACTORY_NAME=${{ secrets.FACTORY_NAME_PROD }}
+            RESOURCE_GROUP=${{ secrets.RESOURCE_GROUP_PROD }}
           fi
 
-          # Confirm authentication worked
           az account show
-
           echo "Logged in successfully"
 
-          # Deploy triggers
           CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
+          echo "Files to deploy: $CHANGED_FILES"
+
           if [[ -z "$CHANGED_FILES" ]]; then
-            echo "No triggers to deploy."
+            echo "No trigger changes detected."
             exit 0
           fi
 
-          echo "Changed files: $CHANGED_FILES"
-
           for file in $CHANGED_FILES; do
-            if [[ -f "$file" && "$file" == *".json" ]]; then
-              echo "Deploying trigger: $file"
+            echo "Processing file $file"
+            if [[ -f "$file" && "$file" == *.json ]]; then
               trigger_name=$(basename "$file" .json)
+              echo "Deploying trigger: $trigger_name"
 
-              # Extract trigger properties using jq
-              trigger_properties=$(cat "$file")
+              # Print the content of the file
+              cat "$file"
 
-              # Deploy the trigger with the extracted properties
-              az datafactory trigger create \
-                --factory-name "$FACTORY_NAME" \
-                --resource-group "$RESOURCE_GROUP" \
-                --name "$trigger_name" \
-                --properties "$trigger_properties"
+              # Validate 'properties' field
+              if jq -e '.properties' "$file" >/dev/null; then
+                URL="https://management.azure.com/subscriptions/${{ secrets.SUBSCRIPTION_ID }}/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.DataFactory/factories/$FACTORY_NAME/triggers/$trigger_name?api-version=2018-06-01"
+
+                echo "Deploying to URL: $URL"
+                token=$(az account get-access-token --query 'accessToken' -o tsv)
+                response=$(curl -X PUT -H "Content-Type: application/json" \
+                    -H "Authorization: Bearer $token" \
+                    -d @"$file" "$URL" 2>&1)
+                echo "Response: $response"
+
+                if echo "$response" | grep -q 'error'; then
+                  echo "Error deploying $trigger_name: $response"
+                  exit 1
+                else
+                  echo "Successfully deployed $trigger_name"
+                fi
+              else
+                echo "Error: 'properties' field missing in $file"
+                exit 1
+              fi
             else
-              echo "Skipping non-JSON file: $file"
+              echo "Skipping invalid file: $file"
             fi
           done
