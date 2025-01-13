@@ -45,7 +45,7 @@ jobs:
         uses: tj-actions/changed-files@v37
         with:
           since: ${{ env.DATE }}
-          files: dataproducts/${{ env.FUNCTION_NAME }}/trigger
+          files: dataproducts/${{ env.FUNCTION_NAME }}/triggerS
 
       - name: Validate and Debug JSON Files
         run: |
