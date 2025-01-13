@@ -1,0 +1,104 @@
+{
+    "name": "AAlerts Data Flow",
+    "properties": {
+        "type": "MappingDataFlow",
+        "typeProperties": {
+            "sources": [
+                {
+                    "dataset": {
+                        "referenceName": "Alerts_t_alerts_dm",
+                        "type": "DatasetReference"
+                    },
+                    "name": "alrtdtlOutputStream"
+                }
+            ],
+            "sinks": [
+                {
+                    "dataset": {
+                        "referenceName": "ds_alerts_dataflow_sink",
+                        "type": "DatasetReference"
+                    },
+                    "name": "sink1"
+                }
+            ],
+            "transformations": [
+                {
+                    "name": "derivedColumn1"
+                }
+            ],
+            "scriptLines": [
+                "source(output(",
+                "          ALRT_ID as string,",
+                "          ACCT_ID as long,",
+                "          ALRT_KPI as string,",
+                "          ALRT_TIME_GRAIN as string,",
+                "          SLS_PERSONA_ID as string,",
+                "          SLS_PERSONA as string,",
+                "          ALRT_ACCT_HIER as string,",
+                "          ALRT_PROD_HIER as string,",
+                "          ALRT_ACCT_HIER_VAL as string,",
+                "          ALRT_PROD_HIER_VAL as string,",
+                "          ALRT_FLG as string,",
+                "          ALRT_DRCTN as string,",
+                "          ACTL_KPI_VAL as double,",
+                "          FRCST_KPI_VAL as double,",
+                "          ALRT_DVTN as double,",
+                "          ALRT_MSG as string,",
+                "          ALRT_PRIORITY as string,",
+                "          ALRT_PRIORITY_SCORE as double,",
+                "          ALRT_TG_1 as string,",
+                "          ALRT_TG_2 as string,",
+                "          ALRT_TG_3 as string,",
+                "          ALRT_TG_4 as string,",
+                "          ALRT_TG_5 as string,",
+                "          ALRT_GNRTNG_DT as date,",
+                "          ALRT_WK as string,",
+                "          ALRT_MNTH as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     inferDriftedColumnTypes: true,",
+                "     ignoreNoFilesFound: false,",
+                "     format: 'parquet') ~> alrtdtlOutputStream",
+                "alrtdtlOutputStream derive(ACCT_ID = toInteger(ACCT_ID)) ~> derivedColumn1",
+                "derivedColumn1 sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     partitionFileNames:['Alert_DM_10 (1).csv'],",
+                "     umask: 0022,",
+                "     preCommands: [],",
+                "     postCommands: [],",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true,",
+                "     mapColumn(",
+                "          ALRT_ID,",
+                "          ACCT_ID,",
+                "          ALRT_KPI,",
+                "          ALRT_TIME_GRAIN,",
+                "          SLS_PERSONA_ID,",
+                "          SLS_PERSONA,",
+                "          ALRT_ACCT_HIER,",
+                "          ALRT_PROD_HIER,",
+                "          ALRT_ACCT_HIER_VAL,",
+                "          ALRT_PROD_HIER_VAL,",
+                "          ALRT_FLG,",
+                "          ALRT_DRCTN,",
+                "          ACTL_KPI_VAL,",
+                "          FRCST_KPI_VAL,",
+                "          ALRT_DVTN,",
+                "          ALRT_MSG,",
+                "          ALRT_PRIORITY,",
+                "          ALRT_PRIORITY_SCORE,",
+                "          ALRT_TG_1,",
+                "          ALRT_TG_2,",
+                "          ALRT_TG_3,",
+                "          ALRT_TG_4,",
+                "          ALRT_TG_5,",
+                "          ALRT_GNRTNG_DT,",
+                "          ALRT_WK,",
+                "          ALRT_MNTH",
+                "     ),",
+                "     partitionBy('hash', 1)) ~> sink1"
+            ]
+        }
+    }
+}
