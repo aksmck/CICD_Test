@@ -1,0 +1,129 @@
+{
+    "name": "strtgc_accts_orchestrator_adhoc_test",
+    "properties": {
+        "activities": [
+            {
+                "name": "csv_to_landing",
+                "type": "ExecutePipeline",
+                "dependsOn": [],
+                "policy": {
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "strtgc_accts_landing_manual_comma_sep_csv",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {
+                        "process_name": {
+                            "value": "@pipeline().parameters.master_process_name",
+                            "type": "Expression"
+                        },
+                        "source_system_name": "CSV"
+                    }
+                }
+            },
+            {
+                "name": "landing_to_bronze",
+                "type": "ExecutePipeline",
+                "dependsOn": [
+                    {
+                        "activity": "csv_to_landing",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "strtgc_accts_brnz",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {
+                        "process_name": {
+                            "value": "@pipeline().parameters.master_process_name",
+                            "type": "Expression"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "bronze_to_silver",
+                "type": "ExecutePipeline",
+                "dependsOn": [
+                    {
+                        "activity": "landing_to_bronze",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "strtgc_accts_slvr",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {
+                        "process_name": {
+                            "value": "@pipeline().parameters.master_process_name",
+                            "type": "Expression"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "gold_layer",
+                "type": "ExecutePipeline",
+                "dependsOn": [
+                    {
+                        "activity": "bronze_to_silver",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "strtgc_accts_gold",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {
+                        "process_name": {
+                            "value": "@pipeline().parameters.master_process_name",
+                            "type": "Expression"
+                        }
+                    }
+                }
+            }
+        ],
+        "parameters": {
+            "master_process_name": {
+                "type": "string",
+                "defaultValue": "SA_INSIGHTS_MASTER_DSO_ADHOC"
+            }
+        },
+        "folder": {
+            "name": "Test_Zone/master"
+        },
+        "annotations": [],
+        "lastPublishTime": "2025-01-02T07:43:24Z"
+    },
+    "type": "Microsoft.DataFactory/factories/pipelines"
+}
