@@ -1,0 +1,361 @@
+{
+    "name": "strtgc_accts_orchestrator_dly_test",
+    "properties": {
+        "activities": [
+            {
+                "name": "saphana_to_landing",
+                "type": "ExecutePipeline",
+                "dependsOn": [],
+                "policy": {
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "strtgc_accts_landing_sapbhphana",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {
+                        "process_name": {
+                            "value": "@variables('master_process_name')",
+                            "type": "Expression"
+                        },
+                        "source_system_name": "BHP"
+                    }
+                }
+            },
+            {
+                "name": "landing_to_bronze",
+                "type": "ExecutePipeline",
+                "dependsOn": [
+                    {
+                        "activity": "saphana_to_landing",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "strtgc_accts_brnz",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {
+                        "process_name": {
+                            "value": "@variables('master_process_name')",
+                            "type": "Expression"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "bronze_to_silver",
+                "type": "ExecutePipeline",
+                "dependsOn": [
+                    {
+                        "activity": "landing_to_bronze",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "strtgc_accts_slvr",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {
+                        "process_name": {
+                            "value": "@variables('master_process_name')",
+                            "type": "Expression"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "gold_layer",
+                "type": "ExecutePipeline",
+                "dependsOn": [
+                    {
+                        "activity": "slvr_to_gold_layer",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    },
+                    {
+                        "activity": "Monthly Pipeline Trigger Condition",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "strtgc_accts_gold",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {
+                        "process_name": {
+                            "value": "@variables('gold_process_name')",
+                            "type": "Expression"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "Completion Email Condition",
+                "description": "This activity used to send a custom email notification for the successful refresh or failure of SA Insights augmented layers tables.",
+                "type": "IfCondition",
+                "dependsOn": [
+                    {
+                        "activity": "gold_layer",
+                        "dependencyConditions": [
+                            "Completed",
+                            "Skipped"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "expression": {
+                        "value": "@equals(if(\n    or(\n        or(\n            equals(activity('saphana_to_landing').status, 'Failed'), \n            equals(activity('landing_to_bronze').status, 'Failed')\n        ),\n        or(\n            equals(activity('bronze_to_silver').status, 'Failed'),\n            or(equals(activity('gold_layer').status, 'Failed'),\n            equals(activity('slvr_to_gold_layer').status, 'Failed'))\n        )\n    ),\n    'Failed',\n    'Succeeded'\n),'Succeeded')\n",
+                        "type": "Expression"
+                    },
+                    "ifFalseActivities": [
+                        {
+                            "name": "Fail1",
+                            "type": "Fail",
+                            "dependsOn": [
+                                {
+                                    "activity": "Completion Email Alert - False",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                }
+                            ],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "message": "'An internal activity or invoked pipeline failed'",
+                                "errorCode": "'000000001'"
+                            }
+                        },
+                        {
+                            "name": "Completion Email Alert - False",
+                            "description": "This activity is for the failure of the MHS augmented layer pipeline.",
+                            "type": "ExecutePipeline",
+                            "dependsOn": [],
+                            "policy": {
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "pipeline": {
+                                    "referenceName": "psasdi_custom_email_notification",
+                                    "type": "PipelineReference"
+                                },
+                                "waitOnCompletion": true,
+                                "parameters": {
+                                    "pipelineName": {
+                                        "value": "@pipeline().Pipeline",
+                                        "type": "Expression"
+                                    },
+                                    "dataFactoryName": {
+                                        "value": "@pipeline().DataFactory",
+                                        "type": "Expression"
+                                    },
+                                    "runId": {
+                                        "value": "@pipeline().RunId",
+                                        "type": "Expression"
+                                    },
+                                    "productName": "SA INSIGHTS",
+                                    "pipelineStartTime": {
+                                        "value": "@pipeline().TriggerTime",
+                                        "type": "Expression"
+                                    },
+                                    "pipelineEndTime": {
+                                        "value": "@utcnow()",
+                                        "type": "Expression"
+                                    },
+                                    "toEmail": "raghav.haralalka@McKesson.com",
+                                    "adfWebLink": {
+                                        "value": "@concat('https://adf.azure.com/en/monitoring/pipelineruns/', pipeline().RunId, '?factory=', encodeUriComponent(pipeline().globalParameters.factoryUrl))",
+                                        "type": "Expression"
+                                    },
+                                    "pipelineStatus": "Failed"
+                                }
+                            }
+                        }
+                    ],
+                    "ifTrueActivities": [
+                        {
+                            "name": "Completion Email Alert- True",
+                            "description": "This activity is for the success of the MHS augmented layer pipeline.",
+                            "type": "ExecutePipeline",
+                            "dependsOn": [
+                                {
+                                    "activity": "PowerBI Dataset Refresh",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                }
+                            ],
+                            "policy": {
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "pipeline": {
+                                    "referenceName": "psasdi_custom_email_notification",
+                                    "type": "PipelineReference"
+                                },
+                                "waitOnCompletion": true,
+                                "parameters": {
+                                    "pipelineName": {
+                                        "value": "@pipeline().Pipeline",
+                                        "type": "Expression"
+                                    },
+                                    "dataFactoryName": {
+                                        "value": "@pipeline().DataFactory",
+                                        "type": "Expression"
+                                    },
+                                    "runId": {
+                                        "value": "@pipeline().RunId",
+                                        "type": "Expression"
+                                    },
+                                    "productName": "SA INSIGHTS",
+                                    "pipelineStartTime": {
+                                        "value": "@pipeline().TriggerTime",
+                                        "type": "Expression"
+                                    },
+                                    "pipelineEndTime": {
+                                        "value": "@utcnow()",
+                                        "type": "Expression"
+                                    },
+                                    "toEmail": "raghav.haralalka@McKesson.com",
+                                    "adfWebLink": {
+                                        "value": "@concat('https://adf.azure.com/en/monitoring/pipelineruns/', pipeline().RunId, '?factory=', encodeUriComponent(pipeline().globalParameters.factoryUrl))",
+                                        "type": "Expression"
+                                    },
+                                    "pipelineStatus": "Succeeded"
+                                }
+                            }
+                        },
+                        {
+                            "name": "PowerBI Dataset Refresh",
+                            "type": "ExecutePipeline",
+                            "dependsOn": [],
+                            "policy": {
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "pipeline": {
+                                    "referenceName": "powerbi_dataset_refresh",
+                                    "type": "PipelineReference"
+                                },
+                                "waitOnCompletion": true,
+                                "parameters": {
+                                    "file_path": {
+                                        "value": "@concat('abfss://landingzone@stpsasdisna', pipeline().globalParameters.env1, '.dfs.core.windows.net/landing-volume/CONFIGS/powerbi_config.json')",
+                                        "type": "Expression"
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "slvr_to_gold_layer",
+                "type": "ExecutePipeline",
+                "dependsOn": [
+                    {
+                        "activity": "bronze_to_silver",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "strtgc_accts_slvr_gold",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {
+                        "process_name": {
+                            "value": "@variables('master_process_name')",
+                            "type": "Expression"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "Monthly Pipeline Trigger Condition",
+                "type": "IfCondition",
+                "dependsOn": [],
+                "userProperties": [],
+                "typeProperties": {
+                    "expression": {
+                        "value": "@and(\n    or(\n        and(\n            greaterOrEquals(int(formatDateTime(utcnow(), 'dd')), 15),\n            lessOrEquals(int(formatDateTime(utcnow(), 'dd')), 21)\n        ),\n        lessOrEquals(int(formatDateTime(utcnow(), 'dd')), 7)\n    ),\n    and(\n        greaterOrEquals(dayOfWeek(utcnow()), 1),\n        lessOrEquals(dayOfWeek(utcnow()), 5)\n    )\n)",
+                        "type": "Expression"
+                    },
+                    "ifTrueActivities": [
+                        {
+                            "name": "strtgc_accts_orchestrator_mthly",
+                            "type": "ExecutePipeline",
+                            "dependsOn": [],
+                            "policy": {
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "pipeline": {
+                                    "referenceName": "strtgc_accts_orchestrator_mthly",
+                                    "type": "PipelineReference"
+                                },
+                                "waitOnCompletion": true
+                            }
+                        }
+                    ]
+                }
+            }
+        ],
+        "variables": {
+            "master_process_name": {
+                "type": "String",
+                "defaultValue": "SA_INSIGHTS_MASTER_DLY"
+            },
+            "gold_process_name": {
+                "type": "String",
+                "defaultValue": "SA_INSIGHTS_GOLD_DLY"
+            }
+        },
+        "folder": {
+            "name": "Test_Zone/master"
+        },
+        "annotations": [],
+        "lastPublishTime": "2024-12-17T11:57:54Z"
+    },
+    "type": "Microsoft.DataFactory/factories/pipelines"
+}
