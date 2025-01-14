@@ -4,14 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       deployment_config:
-        description: 'Enter BRANCH, ENVIRONMENT, and DATA SOURCE (e.g., {"branch": "dev", "environment": "dev", "source": "SA_INSIGHTS"})'
+        description: 'Enter BRANCH, ENVIRONMENT, and DATA SOURCE (e.g., {"Branch": "dev", "Environment": "dev", "Source": "SA_INSIGHTS"})'
         type: string
         required: true
         default: >-
           {
-            "branch": "",
-            "environment": "dev",
-            "source": ""
+            "Branch": "",
+            "Environment": "dev",
+            "Source": ""
           }
       date:
         description: 'Deploy changes after a commit date (YYYY-MM-DD)'
