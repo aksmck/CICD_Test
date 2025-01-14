@@ -1,0 +1,41 @@
+{
+    "name": "strtgc_accts_orchestrator_view_test",
+    "properties": {
+        "activities": [
+            {
+                "name": "gold_layer",
+                "type": "ExecutePipeline",
+                "dependsOn": [],
+                "policy": {
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "strtgc_accts_gold",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {
+                        "process_name": {
+                            "value": "@variables('gold_process_name')",
+                            "type": "Expression"
+                        }
+                    }
+                }
+            }
+        ],
+        "variables": {
+            "gold_process_name": {
+                "type": "String",
+                "defaultValue": "SA_INSIGHTS_SCP_GOLD_VIEW"
+            }
+        },
+        "folder": {
+            "name": "Test_Zone/master"
+        },
+        "annotations": [],
+        "lastPublishTime": "2024-12-12T11:43:36Z"
+    },
+    "type": "Microsoft.DataFactory/factories/pipelines"
+}
