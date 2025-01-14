@@ -19,11 +19,6 @@ on:
         description: 'Commit date'
         type: string
         required: true
-      trigger_pipeline:
-        description: 'Whether to trigger the pipeline after deployment'
-        type: boolean
-        required: false
-        default: false  # Default to false so it doesn't trigger unless the user opts for it
 
 env:
   ENVIRONMENT: ${{ inputs.environment }}
@@ -31,7 +26,6 @@ env:
   FUNCTION_NAME: ${{ inputs.function_name }}
   ADF_PIPELINES_DEPLOYMENT_STEPS: ${{ inputs.adf_pipelines_deployment_steps }}
   BRANCH: ${{ github.ref_name }}
-  TRIGGER_PIPELINE: ${{ inputs.trigger_pipeline }}
 
 jobs:
   publish:
@@ -91,22 +85,16 @@ jobs:
 
           echo "Logged in successfully"
 
-          # Deploy or Trigger Pipelines
-          if [[ $ADF_PIPELINES_DEployment_STEPS == "all" ]]; then
+          # Deploy pipelines
+          if [[ $ADF_PIPELINES_DEPLOYMENT_STEPS == "all" ]]; then
             for file in ${{ steps.changed-files-since.outputs.all_changed_files }}; do
               if [[ $file == dataproducts/${{ env.FUNCTION_NAME }}/pipelines/* && $file == *".json" ]]; then
                 echo "Deploying pipeline: $file"
                 pipeline_name=${file##*/}  # Extract file name
                 pipeline_name=${pipeline_name%.*}  # Remove file extension
 
-                # Deploy pipeline
+                # Use '@' to pass the file content to the az command
                 az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline @$file --name "$pipeline_name"
-
-                # Trigger pipeline if the user opted for it
-                if [[ $TRIGGER_PIPELINE == true ]]; then
-                  echo "Triggering pipeline: $pipeline_name"
-                  az datafactory pipeline run --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline-name "$pipeline_name"
-                fi
               fi
             done
           else
@@ -117,15 +105,7 @@ jobs:
                 echo "Deploying pipeline from $ADF_PIPELINES_DEPLOYMENT_STEPS folder: $file"
                 pipeline_name=${file##*/}
                 pipeline_name=${pipeline_name%.*}
-
-                # Deploy pipeline
                 az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline @$file --name "$pipeline_name"
-
-                # Trigger pipeline if the user opted for it
-                if [[ $TRIGGER_PIPELINE == true ]]; then
-                  echo "Triggering pipeline: $pipeline_name"
-                  az datafactory pipeline run --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline-name "$pipeline_name"
-                fi
               fi
             done
           fi
