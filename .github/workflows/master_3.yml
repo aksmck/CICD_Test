@@ -8,8 +8,7 @@ on:
         type: string
         required: true
         default: >-
-          {
-            "branch": "",
+          { "branch": "",
             "environment": "dev",
             "source": ""
           }
@@ -59,7 +58,7 @@ on:
         type: boolean
         required: false
       trigger_adf_pipelines:
-        description: 'Whether to trigger ADF Pipelines after deployment'
+        description: 'Whether to trigger ADF Pipeline after deployment'
         type: boolean
         required: false
         default: false  # Default to false so it doesn't trigger unless the user opts for it
