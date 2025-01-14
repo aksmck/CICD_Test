@@ -1,51 +1,96 @@
-name: Master Deployment Workflow_testing
+name: Master Deployment Workflow
 
 on:
   workflow_dispatch:
     inputs:
-      config:
-        description: 'Configuration in JSON format'
+      deployment_config:
+        description: 'Deployment configuration in JSON format (e.g., {"branch": "main", "source": "MPB-MNC", "environment": "dev"})'
         type: string
         required: true
         default: >-
           {
             "branch": "main",
-            "environment": "dev",
-            "function_name": "MPB-MNC",
-            "date": "1999-01-01",
-            "databricks_deployment_steps": "none",
-            "adf_pipelines_deployment_steps": "none",
-            "adf_pipelines_trigger_steps": "none",
-            "deploy_linked_service": false,
-            "deploy_datasets": false,
-            "deploy_triggers": false,
-            "deploy_dataflows": false
+            "source": "MPB-MNC",
+            "environment": "dev"
           }
+      date:
+        description: 'Deploy changes after a commit date (YYYY-MM-DD)'
+        type: string
+        default: '1999-01-01'
+        required: true
+      databricks_deployment_steps:
+        description: 'Select Databricks deployment step'
+        type: choice
+        options:
+          - none
+          - ddl
+          - dml
+          - all
+        required: false
+        default: 'none'
+      adf_pipelines_deployment_steps:
+        description: 'Select ADF Pipelines deployment step'
+        type: choice
+        options:
+          - none
+          - all
+          - landing
+          - bronze
+          - silver
+          - gold
+          - master
+          - miscellaneous
+        required: false
+        default: 'none'
+      adf_pipelines_trigger_steps:
+        description: 'Select ADF Pipelines trigger step'
+        type: choice
+        options:
+          - none
+          - all
+          - landing
+          - bronze
+          - silver
+          - gold
+          - master
+          - miscellaneous
+        required: false
+        default: 'none'
+      deploy_linked_service:
+        description: 'Deploy ADF Linked Services'
+        type: boolean
+        required: false
+      deploy_datasets:
+        description: 'Deploy ADF Datasets'
+        type: boolean
+        required: false
+      deploy_triggers:
+        description: 'Deploy ADF Triggers'
+        type: boolean
+        required: false
+      deploy_dataflows:
+        description: 'Deploy ADF Dataflows'
+        type: boolean
+        required: false
 
 env:
-  CONFIG: ${{ inputs.config }}
+  DATE: ${{ inputs.date }}
 
 jobs:
   validate_inputs:
     runs-on: ubuntu-latest
     steps:
-      - name: Parse Inputs
-        id: parse
+      - name: Parse Deployment Configuration
+        id: parse_config
         run: |
-          echo "Parsing configuration..."
-          CONFIG_JSON=${{ inputs.config }}
-          echo "CONFIG=${CONFIG_JSON}" >> $GITHUB_ENV
-          echo "BRANCH=$(jq -r '.branch' <<< "${CONFIG_JSON}")" >> $GITHUB_ENV
-          echo "ENVIRONMENT=$(jq -r '.environment' <<< "${CONFIG_JSON}")" >> $GITHUB_ENV
-          echo "FUNCTION_NAME=$(jq -r '.function_name' <<< "${CONFIG_JSON}")" >> $GITHUB_ENV
-          echo "DATE=$(jq -r '.date' <<< "${CONFIG_JSON}")" >> $GITHUB_ENV
-          echo "DATABRICKS_STEPS=$(jq -r '.databricks_deployment_steps' <<< "${CONFIG_JSON}")" >> $GITHUB_ENV
-          echo "ADF_STEPS=$(jq -r '.adf_pipelines_deployment_steps' <<< "${CONFIG_JSON}")" >> $GITHUB_ENV
-          echo "TRIGGER_STEPS=$(jq -r '.adf_pipelines_trigger_steps' <<< "${CONFIG_JSON}")" >> $GITHUB_ENV
-          echo "DEPLOY_LINKED_SERVICE=$(jq -r '.deploy_linked_service' <<< "${CONFIG_JSON}")" >> $GITHUB_ENV
-          echo "DEPLOY_DATASETS=$(jq -r '.deploy_datasets' <<< "${CONFIG_JSON}")" >> $GITHUB_ENV
-          echo "DEPLOY_TRIGGERS=$(jq -r '.deploy_triggers' <<< "${CONFIG_JSON}")" >> $GITHUB_ENV
-          echo "DEPLOY_DATAFLOWS=$(jq -r '.deploy_dataflows' <<< "${CONFIG_JSON}")" >> $GITHUB_ENV
+          CONFIG_JSON=${{ inputs.deployment_config }}
+          echo "Parsing deployment configuration: $CONFIG_JSON"
+          BRANCH=$(jq -r '.branch' <<< "$CONFIG_JSON")
+          SOURCE=$(jq -r '.source' <<< "$CONFIG_JSON")
+          ENVIRONMENT=$(jq -r '.environment' <<< "$CONFIG_JSON")
+          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+          echo "SOURCE=$SOURCE" >> $GITHUB_ENV
+          echo "ENVIRONMENT=$ENVIRONMENT" >> $GITHUB_ENV
 
       - name: Validate Date Format
         run: |
@@ -56,39 +101,4 @@ jobs:
 
       - name: Validate Future Date
         run: |
-          if [[ "$DATE" > "$(date +%Y-%m-%d)" ]]; then
-            echo "The specified date is in the future. Provide a valid past date."
-            exit 1
-          fi
-
-      - name: Validate Environment Based on Branch
-        run: |
-          if [[ "$BRANCH" != "main" && "$ENVIRONMENT" == "prod" ]]; then
-            echo "Production environment can only be deployed from the 'main' branch."
-            exit 1
-          fi
-          if [[ "$BRANCH" != "qa" && "$BRANCH" != "main" && "$ENVIRONMENT" == "qa" ]]; then
-            echo "QA environment can only be deployed from the 'qa' or 'main' branch."
-            exit 1
-          fi
-
-  trigger_workflows:
-    name: Trigger Deployment Workflows
-    needs: validate_inputs
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v2
-        with:
-          ref: $BRANCH
-
-      # Trigger Databricks Deployment
-      - name: Trigger Databricks Deployment
-        if: ${{ env.DATABRICKS_STEPS != 'none' }}
-        run: |
-          curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d '{"ref": "refs/heads/'$BRANCH'", "inputs": {"environment": "'$ENVIRONMENT'", "date": "'$DATE'", "databricks_deployment_steps": "'$DATABRICKS_STEPS'", "function_name": "'$FUNCTION_NAME'"}}' \
-            https://api.github.com/repos/${{ github.repository }}/actions/workflows/databricks.yml/dispatches
-
-      # Similar blocks for ADF deployments, adjusted for the new inputs...
+          if [[ "$DATE" > "$(date +%Y-%m-%d)"
