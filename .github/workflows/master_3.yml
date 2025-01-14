@@ -42,20 +42,6 @@ on:
           - miscellaneous
         required: false
         default: 'none'
-      adf_pipelines_trigger_steps:
-        description: 'Select ADF Pipelines trigger step'
-        type: choice
-        options:
-          - none
-          - all
-          - landing
-          - bronze
-          - silver
-          - gold
-          - master
-          - miscellaneous
-        required: false
-        default: 'none'
       deploy_linked_service:
         description: 'Deploy ADF Linked Services'
         type: boolean
@@ -151,15 +137,6 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/'${{ env.BRANCH }}'", "inputs": {"environment": "'${{ env.ENVIRONMENT }}'", "date": "'$DATE'", "adf_pipelines_deployment_steps": "'${{ inputs.adf_pipelines_deployment_steps }}'", "function_name": "'${{ env.SOURCE }}'"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_pipelines.yml/dispatches
-
-      # Trigger ADF Pipelines Trigger Step
-      - name: Trigger ADF Pipelines Trigger Step
-        if: ${{ inputs.adf_pipelines_trigger_steps != 'none' }}
-        run: |
-          curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d '{"ref": "refs/heads/'${{ env.BRANCH }}'", "inputs": {"environment": "'${{ env.ENVIRONMENT }}'", "date": "'$DATE'", "adf_pipelines_trigger_steps": "'${{ inputs.adf_pipelines_trigger_steps }}'", "function_name": "'${{ env.SOURCE }}'"}}' \
-            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_pipelines_trigger.yml/dispatches
 
       # Trigger ADF Linked Services Deployment
       - name: Trigger ADF Linked Services Deployment
