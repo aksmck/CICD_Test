@@ -1,0 +1,154 @@
+{
+    "name": "strtgc_accts_orchestrator_mthly_test",
+    "properties": {
+        "activities": [
+            {
+                "name": "Monthly Pipeline Trigger Condition 5 Weekdays from 1st",
+                "type": "IfCondition",
+                "dependsOn": [],
+                "userProperties": [],
+                "typeProperties": {
+                    "expression": {
+                        "value": "@and(\n    lessOrEquals(int(formatDateTime(utcnow(), 'dd')), 7),\n    and(\n        greaterOrEquals(dayOfWeek(utcnow()), 1),\n        lessOrEquals(dayOfWeek(utcnow()), 5)\n    )\n)",
+                        "type": "Expression"
+                    },
+                    "ifTrueActivities": [
+                        {
+                            "name": "saphana_to_landing",
+                            "type": "ExecutePipeline",
+                            "dependsOn": [],
+                            "policy": {
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "pipeline": {
+                                    "referenceName": "strtgc_accts_landing_sapbhphana",
+                                    "type": "PipelineReference"
+                                },
+                                "waitOnCompletion": true,
+                                "parameters": {
+                                    "process_name": {
+                                        "value": "@variables('master_process_name')",
+                                        "type": "Expression"
+                                    },
+                                    "source_system_name": "BHP"
+                                }
+                            }
+                        },
+                        {
+                            "name": "landing_to_bronze",
+                            "type": "ExecutePipeline",
+                            "dependsOn": [
+                                {
+                                    "activity": "saphana_to_landing",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                }
+                            ],
+                            "policy": {
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "pipeline": {
+                                    "referenceName": "strtgc_accts_brnz",
+                                    "type": "PipelineReference"
+                                },
+                                "waitOnCompletion": true,
+                                "parameters": {
+                                    "process_name": {
+                                        "value": "@variables('master_process_name')",
+                                        "type": "Expression"
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "bronze_to_silver",
+                            "type": "ExecutePipeline",
+                            "dependsOn": [
+                                {
+                                    "activity": "landing_to_bronze",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                }
+                            ],
+                            "policy": {
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "pipeline": {
+                                    "referenceName": "strtgc_accts_slvr",
+                                    "type": "PipelineReference"
+                                },
+                                "waitOnCompletion": true,
+                                "parameters": {
+                                    "process_name": {
+                                        "value": "@variables('master_process_name')",
+                                        "type": "Expression"
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "Monthly Pipeline Trigger Condition 5 Weekdays from 15th",
+                "type": "IfCondition",
+                "dependsOn": [],
+                "userProperties": [],
+                "typeProperties": {
+                    "expression": {
+                        "value": "@and(\n    and(\n        greaterOrEquals(int(formatDateTime(utcnow(), 'dd')), 15),\n        lessOrEquals(int(formatDateTime(utcnow(), 'dd')), 21)\n    ),\n    and(\n        greaterOrEquals(dayOfWeek(utcnow()), 1),\n        lessOrEquals(dayOfWeek(utcnow()), 5)\n    )\n)",
+                        "type": "Expression"
+                    },
+                    "ifTrueActivities": [
+                        {
+                            "name": "gold_layer",
+                            "type": "ExecutePipeline",
+                            "dependsOn": [],
+                            "policy": {
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "pipeline": {
+                                    "referenceName": "strtgc_accts_gold",
+                                    "type": "PipelineReference"
+                                },
+                                "waitOnCompletion": true,
+                                "parameters": {
+                                    "process_name": {
+                                        "value": "@variables('gold_process_name')",
+                                        "type": "Expression"
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        ],
+        "variables": {
+            "master_process_name": {
+                "type": "String",
+                "defaultValue": "SA_INSIGHTS_MASTER_MTHLY"
+            },
+            "gold_process_name": {
+                "type": "String",
+                "defaultValue": "SA_INSIGHTS_GOLD_MTHLY"
+            }
+        },
+        "folder": {
+            "name": "test/master"
+        },
+        "annotations": [],
+        "lastPublishTime": "2024-12-12T11:39:32Z"
+    },
+    "type": "Microsoft.DataFactory/factories/pipelines"
+}
