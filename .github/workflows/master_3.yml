@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       deployment_config:
-        description: 'Enter BRANCH, ENVIRONMENT, and DATA SOURCE (e.g., {"branch": "", "environment": "dev", "source": ""})'
+        description: 'Enter BRANCH, ENVIRONMENT, and DATA SOURCE (e.g., {"branch": "dev", "environment": "dev", "source": "SA_INSIGHTS"})'
         type: string
         required: true
         default: >-
