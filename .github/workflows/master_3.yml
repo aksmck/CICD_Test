@@ -1,4 +1,4 @@
-name: Master_Workflow_3
+name: Master Deployment Workflow
 
 on:
   workflow_dispatch:
