@@ -3,7 +3,7 @@ name: Databricks Deployment
 on:
   workflow_dispatch:
     inputs:
-      environment:
+      ENV:
         type: string
         required: true
       date:
@@ -12,15 +12,15 @@ on:
       databricks_deployment_steps:
         type: string
         required: true
-      function_name:
+      SOURCE:
         type: string
         required: true
 
 env:
-  ENVIRONMENT: ${{ inputs.environment }}
+  ENV: ${{ inputs.ENV }}
   DATE: ${{ inputs.date }}
-  SOURCE: ${{ inputs.function_name }}
-  BRANCH: ${{ github.ref_name }}  # Added environment variable for branch
+  SOURCE: ${{ inputs.SOURCE }}
+  BRANCH: ${{ github.ref_name }}  # Added ENV variable for branch
 
 jobs:
   deploy:
@@ -41,11 +41,11 @@ jobs:
             # Check for changes in common/utils/ if ingestion_utilities is selected
             ${{ contains(inputs.databricks_deployment_steps, 'ingestion_utilities') && 'common/utils/' || '' }}
             
-            # Check for changes in dataproducts/${{ inputs.function_name }}/ddls/ if ddl is selected
-            ${{ contains(inputs.databricks_deployment_steps, 'ddl') && 'dataproducts/${{ inputs.function_name }}/ddls/' || '' }}
+            # Check for changes in dataproducts/${{ inputs.SOURCE }}/ddls/ if ddl is selected
+            ${{ contains(inputs.databricks_deployment_steps, 'ddl') && 'dataproducts/${{ inputs.SOURCE }}/ddls/' || '' }}
             
-            # Check for changes in dataproducts/${{ inputs.function_name }}/dmls/ if dml is selected
-            ${{ contains(inputs.databricks_deployment_steps, 'dml') && 'dataproducts/${{ inputs.function_name }}/dmls/' || '' }}
+            # Check for changes in dataproducts/${{ inputs.SOURCE }}/dmls/ if dml is selected
+            ${{ contains(inputs.databricks_deployment_steps, 'dml') && 'dataproducts/${{ inputs.SOURCE }}/dmls/' || '' }}
 
       # Uninstall the old version of Databricks CLI, if any
       - name: Uninstall old Databricks CLI if exists
@@ -62,24 +62,24 @@ jobs:
         run: |
           databricks --version  # This should print the new CLI version
 
-      # Set up Databricks environment variables for authentication (no need for databricks configure)
-      - name: Setup Databricks environment
+      # Set up Databricks ENV variables for authentication (no need for databricks configure)
+      - name: Setup Databricks ENV
         run: |
-          if [ "${{ inputs.environment }}" == 'dev' ]; then
+          if [ "${{ inputs.ENV }}" == 'dev' ]; then
             echo "DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST_DEV }}" >> $GITHUB_ENV
             echo "DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN_DEV }}" >> $GITHUB_ENV
-          elif [ "${{ inputs.environment }}" == 'qat' ]; then
+          elif [ "${{ inputs.ENV }}" == 'qat' ]; then
             echo "DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST_QAT }}" >> $GITHUB_ENV
             echo "DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN_QAT }}" >> $GITHUB_ENV
-          elif [ "${{ inputs.environment }}" == 'prod' ]; then
+          elif [ "${{ inputs.ENV }}" == 'prod' ]; then
             echo "DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST_PROD }}" >> $GITHUB_ENV
             echo "DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN_PROD }}" >> $GITHUB_ENV
           fi
 
-      # Use environment variables directly in deployment commands without configuring interactively.
+      # Use ENV variables directly in deployment commands without configuring interactively.
       - name: Deploy Databricks Files
         run: |
-          echo "Deploying to Databricks for environment: ${{ inputs.environment }} after date: ${{ inputs.date }}"
+          echo "Deploying to Databricks for ENV: ${{ inputs.ENV }} after date: ${{ inputs.date }}"
 
           # Set the target path base in Databricks workspace
           BASE_PATH="/Workspace/Users/s2ek20b@mckesson.com/CICD_TEST"
@@ -93,13 +93,13 @@ jobs:
           # Deploy DDL files if selected
           if [[ "${{ inputs.databricks_deployment_steps }}" == "ddl" || "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
               echo "Deploying DDL files..."
-              databricks workspace import_dir "dataproducts/${{ inputs.function_name }}/ddls/" "${BASE_PATH}/dataproducts/${{ inputs.function_name }}/ddls/" --overwrite 
+              databricks workspace import_dir "dataproducts/${{ inputs.SOURCE }}/ddls/" "${BASE_PATH}/dataproducts/${{ inputs.SOURCE }}/ddls/" --overwrite 
           fi
 
           # Deploy DML files if selected
           if [[ "${{ inputs.databricks_deployment_steps }}" == "dml" || "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
               echo "Deploying DML files..."
-              databricks workspace import_dir "dataproducts/${{ inputs.function_name }}/dmls/" "${BASE_PATH}/dataproducts/${{ inputs.function_name }}/dmls/" --overwrite 
+              databricks workspace import_dir "dataproducts/${{ inputs.SOURCE }}/dmls/" "${BASE_PATH}/dataproducts/${{ inputs.SOURCE }}/dmls/" --overwrite 
           fi
 
       # Clean up temporary directories (if needed)
