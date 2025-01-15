@@ -28,36 +28,6 @@ on:
           - all
         required: false
         default: 'none'
-      adf_pipelines_deployment_steps:
-        description: 'Select ADF Pipelines deployment step'
-        type: choice
-        options:
-          - none
-          - all
-          - landing
-          - bronze
-          - silver
-          - gold
-          - master
-          - miscellaneous
-        required: false
-        default: 'none'
-      deploy_linked_service:
-        description: 'Deploy ADF Linked Services'
-        type: boolean
-        required: false
-      deploy_datasets:
-        description: 'Deploy ADF Datasets'
-        type: boolean
-        required: false
-      deploy_triggers:
-        description: 'Deploy ADF Triggers'
-        type: boolean
-        required: false
-      deploy_dataflows:
-        description: 'Deploy ADF Dataflows'
-        type: boolean
-        required: false
 
 env:
   DATE: ${{ inputs.date }}
@@ -94,7 +64,7 @@ jobs:
             exit 1
           fi
 
-  trigger_workflows:
+  trigger_databricks:
     needs: validate_inputs
     runs-on: ubuntu-latest
     steps:
@@ -110,5 +80,3 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ env.ENVIRONMENT }}", "date": "${{ env.DATE }}", "databricks_deployment_steps": "${{ inputs.databricks_deployment_steps }}", "function_name": "${{ env.FUNCTION_NAME }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/databricks.yml/dispatches
-
-      # Add more triggers for ADF Pipelines, Linked Services, etc. as needed
