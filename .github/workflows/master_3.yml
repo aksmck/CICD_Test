@@ -67,11 +67,11 @@ jobs:
       - name: Parse Deployment Configuration
         id: parse_config
         run: |
-          CONFIG_JSON=${{ inputs.deployment_config }}
+          CONFIG_JSON='${{ inputs.deployment_config }}'
           echo "Parsing deployment configuration: $CONFIG_JSON"
-          BRANCH=$(jq -r '.BRANCH' <<< "$CONFIG_JSON")
-          SOURCE=$(jq -r '.SOURCE' <<< "$CONFIG_JSON")
-          ENV=$(jq -r '.ENV' <<< "$CONFIG_JSON")
+          BRANCH=$(echo "$CONFIG_JSON" | jq -r '.BRANCH')
+          SOURCE=$(echo "$CONFIG_JSON" | jq -r '.SOURCE')
+          ENV=$(echo "$CONFIG_JSON" | jq -r '.ENV')
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
           echo "SOURCE=$SOURCE" >> $GITHUB_ENV
           echo "ENV=$ENV" >> $GITHUB_ENV
