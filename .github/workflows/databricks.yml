@@ -91,4 +91,13 @@ jobs:
           fi
 
           # Deploy DDL files if selected
-          if [[ "${{ inputs.databricks_deployment_steps }}" == "ddl" || "${{ inputs.dat
+          if [[ "${{ inputs.databricks_deployment_steps }}" == "ddl" || "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
+              echo "Deploying DDL files..."
+              databricks workspace import_dir "dataproducts/${{ inputs.function_name }}/ddls/" "${BASE_PATH}/dataproducts/${{ inputs.function_name }}/ddls/" --overwrite 
+          fi
+
+          # Deploy DML files if selected
+          if [[ "${{ inputs.databricks_deployment_steps }}" == "dml" || "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
+              echo "Deploying DML files..."
+              databricks workspace import_dir "dataproducts/${{ inputs.function_name }}/dmls/" "${BASE_PATH}/dataproducts/${{ inputs.function_name }}/dmls/" --overwrite 
+          fi
