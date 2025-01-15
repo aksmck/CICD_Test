@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       deployment_info:
-        description: 'Enter BRANCH, ENV, and SOURCE (e.g., {"BRANCH": "main", "ENV": "prod", "SOURCE": "SA_INSIGHTS"})'
+        description: 'Enter BRANCH, ENV, and SOURCE (e.g., {"BRANCH": "main", "ENV": "dev" or "qat" or "prod", "SOURCE": "SA_INSIGHTS"})'
         type: string
         required: true
         default: '{"BRANCH": "main", "ENV": "prod", "SOURCE": ""}'
