@@ -20,7 +20,7 @@ env:
   ENVIRONMENT: ${{ inputs.environment }}
   DATE: ${{ inputs.date }}
   FUNCTION_NAME: ${{ inputs.function_name }}
-  BRANCH: ${{ github.ref_name }}  # Added environment variable for branch
+  BRANCH: ${{ github.ref_name }}  # Set branch from the GitHub context
 
 jobs:
   deploy:
@@ -85,19 +85,19 @@ jobs:
           BASE_PATH="/Workspace/Users/s2ek20b@mckesson.com/CICD_TEST"
 
           # Deploy Ingestion Utilities if selected
-          if [[ "${{ env.ENVIRONMENT }}" == "ingestion_utilities" || "${{ env.ENVIRONMENT }}" == "all" ]]; then
+          if [[ "${{ inputs.databricks_deployment_steps }}" == "ingestion_utilities" || "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
               echo "Deploying Ingestion Utilities..."
               databricks workspace import_dir "common/utils/" "${BASE_PATH}/common/utils/" --overwrite 
           fi
 
           # Deploy DDL files if selected
-          if [[ "${{ env.ENVIRONMENT }}" == "ddl" || "${{ env.ENVIRONMENT }}" == "all" ]]; then
+          if [[ "${{ inputs.databricks_deployment_steps }}" == "ddl" || "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
               echo "Deploying DDL files..."
               databricks workspace import_dir "dataproducts/${{ env.FUNCTION_NAME }}/ddls/" "${BASE_PATH}/dataproducts/${{ env.FUNCTION_NAME }}/ddls/" --overwrite 
           fi
 
           # Deploy DML files if selected
-          if [[ "${{ env.ENVIRONMENT }}" == "dml" || "${{ env.ENVIRONMENT }}" == "all" ]]; then
+          if [[ "${{ inputs.databricks_deployment_steps }}" == "dml" || "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
               echo "Deploying DML files..."
               databricks workspace import_dir "dataproducts/${{ env.FUNCTION_NAME }}/dmls/" "${BASE_PATH}/dataproducts/${{ env.FUNCTION_NAME }}/dmls/" --overwrite 
           fi
