@@ -16,6 +16,46 @@ on:
         type: string
         default: '1999-01-01'
         required: true
+      databricks_deployment_steps:
+        description: 'Select Databricks deployment step'
+        type: choice
+        options:
+          - none
+          - ddl
+          - dml
+          - all
+        required: false
+        default: 'none'
+      adf_pipelines_deployment_steps:
+        description: 'Select ADF Pipelines deployment step'
+        type: choice
+        options:
+          - none
+          - all
+          - landing
+          - bronze
+          - silver
+          - gold
+          - master
+          - miscellaneous
+        required: false
+        default: 'none'
+      deploy_linked_service:
+        description: 'Deploy ADF Linked Services'
+        type: boolean
+        required: false
+      deploy_datasets:
+        description: 'Deploy ADF Datasets'
+        type: boolean
+        required: false
+      deploy_triggers:
+        description: 'Deploy ADF Triggers'
+        type: boolean
+        required: false
+      deploy_dataflows:
+        description: 'Deploy ADF Dataflows'
+        type: boolean
+        required: false
 
 env:
   DEFAULT_BRANCH: main
@@ -56,3 +96,93 @@ jobs:
             echo "Invalid date format. Use YYYY-MM-DD."
             exit 1
           fi
+
+      - name: Validate Future Date
+        run: |
+          if [[ "${{ env.DATE }}" > "$(date +%Y-%m-%d)" ]]; then
+            echo "The specified date is in the future. Provide a valid past date."
+            exit 1
+          fi
+
+      - name: Validate ENV Based on BRANCH
+        run: |
+          if [[ "$BRANCH" != "main" && "$ENV" == "prod" ]]; then
+            echo "Production ENV can only be deployed from the 'main' BRANCH."
+            exit 1
+          fi
+          if [[ "$BRANCH" != "qa" && "$BRANCH" != "main" && "$ENV" == "qa" ]]; then
+            echo "QA ENV can only be deployed from the 'qa' or 'main' BRANCH."
+            exit 1
+          fi
+
+      - name: Validate Source Name
+        run: |
+          if [[ -z "$SOURCE" ]]; then
+            echo "Data SOURCE (SOURCE) cannot be empty."
+            exit 1
+          fi
+
+  trigger_workflows:
+    name: Trigger Deployment Workflows
+    needs: validate_inputs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ env.BRANCH }}
+          fetch-depth: 0
+
+      # Trigger Databricks Deployment
+      - name: Trigger Databricks Deployment
+        if: ${{ inputs.databricks_deployment_steps != 'none' }}
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d '{"ref": "refs/heads/'${{ env.BRANCH }}'", "inputs": {"ENV": "'${{ env.ENV }}'", "date": "'$DATE'", "databricks_deployment_steps": "'${{ inputs.databricks_deployment_steps }}'", "SOURCE": "'${{ env.SOURCE }}'"}}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/databricks.yml/dispatches
+
+      # Trigger ADF Pipelines Deployment
+      - name: Trigger ADF Pipelines Deployment
+        if: ${{ inputs.adf_pipelines_deployment_steps != 'none' }}
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d '{"ref": "refs/heads/'${{ env.BRANCH }}'", "inputs": {"ENV": "'${{ env.ENV }}'", "date": "'$DATE'", "adf_pipelines_deployment_steps": "'${{ inputs.adf_pipelines_deployment_steps }}'", "SOURCE": "'${{ env.SOURCE }}'"}}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_pipelines.yml/dispatches
+
+      # Trigger ADF Linked Services Deployment
+      - name: Trigger ADF Linked Services Deployment
+        if: ${{ inputs.deploy_linked_service == true }}
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d '{"ref": "refs/heads/'${{ env.BRANCH }}'", "inputs": {"ENV": "'${{ env.ENV }}'", "date": "'$DATE'", "SOURCE": "'${{ env.SOURCE }}'"}}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_linked_service.yml/dispatches
+
+      # Trigger ADF Datasets Deployment
+      - name: Trigger ADF Datasets Deployment
+        if: ${{ inputs.deploy_datasets == true }}
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d '{"ref": "refs/heads/'${{ env.BRANCH }}'", "inputs": {"ENV": "'${{ env.ENV }}'", "date": "'$DATE'", "SOURCE": "'${{ env.SOURCE }}'"}}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataset.yml/dispatches
+
+      # Trigger ADF Triggers Deployment
+      - name: Trigger ADF Triggers Deployment
+        if: ${{ inputs.deploy_triggers == true }}
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d '{"ref": "refs/heads/'${{ env.BRANCH }}'", "inputs": {"ENV": "'${{ env.ENV }}'", "date": "'$DATE'", "SOURCE": "'${{ env.SOURCE }}'"}}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_trigger.yml/dispatches
+
+      # Trigger ADF Dataflows Deployment
+      - name: Trigger ADF Dataflows Deployment
+        if: ${{ inputs.deploy_dataflows == true }}
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d '{"ref": "refs/heads/'${{ env.BRANCH }}'", "inputs": {"ENV": "'${{ env.ENV }}'", "date": "'$DATE'", "SOURCE": "'${{ env.SOURCE }}'"}}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataflows.yml/dispatches
