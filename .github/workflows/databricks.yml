@@ -68,15 +68,24 @@ jobs:
           if [ "${{ inputs.environment }}" == 'dev' ]; then
             echo "DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST_DEV }}" >> $GITHUB_ENV
             echo "DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN_DEV }}" >> $GITHUB_ENV
+            echo "[DEFAULT]" > ~/.databrickscfg
+            echo "host=${{ secrets.DATABRICKS_HOST_DEV }}" >> ~/.databrickscfg
+            echo "token=${{ secrets.DATABRICKS_TOKEN_DEV }}" >> ~/.databrickscfg
           elif [ "${{ inputs.environment }}" == 'qat' ]; then
             echo "DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST_QAT }}" >> $GITHUB_ENV
             echo "DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN_QAT }}" >> $GITHUB_ENV
+            echo "[DEFAULT]" > ~/.databrickscfg
+            echo "host=${{ secrets.DATABRICKS_HOST_QAT }}" >> ~/.databrickscfg
+            echo "token=${{ secrets.DATABRICKS_TOKEN_QAT }}" >> ~/.databrickscfg
           elif [ "${{ inputs.environment }}" == 'prod' ]; then
             echo "DATABRICKS_HOST=${{ secrets.DATABRICKS_HOST_PROD }}" >> $GITHUB_ENV
             echo "DATABRICKS_TOKEN=${{ secrets.DATABRICKS_TOKEN_PROD }}" >> $GITHUB_ENV
+            echo "[DEFAULT]" > ~/.databrickscfg
+            echo "host=${{ secrets.DATABRICKS_HOST_PROD }}" >> ~/.databrickscfg
+            echo "token=${{ secrets.DATABRICKS_TOKEN_PROD }}" >> ~/.databrickscfg
           fi
 
-      # Use environment variables directly in deployment commands without configuring interactively.
+      # Deploy Databricks Files
       - name: Deploy Databricks Files
         run: |
           echo "Deploying to Databricks for environment: ${{ inputs.environment }} after date: ${{ inputs.date }}"
