@@ -8,11 +8,9 @@ on:
         type: string
         required: true
         default: >-
-          {
-            "BRANCH": "",
+          {"BRANCH": "",
             "ENV": "dev",
-            "SOURCE": ""
-          }
+            "SOURCE": ""}
       date:
         description: 'Deploy changes after a commit date (YYYY-MM-DD)'
         type: string
