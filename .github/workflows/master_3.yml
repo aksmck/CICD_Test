@@ -75,9 +75,9 @@ jobs:
           echo "Environment: $ENVIRONMENT"
           echo "Source: $SOURCE"
           
-          # Store values as outputs
-          echo "::set-output name=environment::$ENVIRONMENT"
-          echo "::set-output name=source::$SOURCE"
+          # Set environment variables for further steps
+          echo "ENVIRONMENT=$ENVIRONMENT" >> $GITHUB_ENV
+          echo "SOURCE=$SOURCE" >> $GITHUB_ENV
 
       - name: Validate Date Format
         run: |
@@ -96,7 +96,7 @@ jobs:
       - name: Validate Deployment Inputs
         run: |
           if [[ "${{ inputs.deploy_linked_service }}" == "true" || "${{ inputs.deploy_datasets }}" == "true" || "${{ inputs.deploy_dataflows }}" == "true" ]]; then
-            if [[ "${{ steps.split_env_source.outputs.source }}" == "none" ]]; then
+            if [[ "$SOURCE" == "none" ]]; then
               echo "If deploying linked services, datasets, or dataflows, a valid function name (source) must be provided."
               exit 1
             fi
@@ -111,13 +111,6 @@ jobs:
         with:
           ref: ${{ inputs.branch }}
 
-      - name: Set Environment and Source as Variables
-        run: |
-          ENVIRONMENT="${{ steps.split_env_source.outputs.environment }}"
-          SOURCE="${{ steps.split_env_source.outputs.source }}"
-          echo "Environment: $ENVIRONMENT"
-          echo "Source: $SOURCE"
-
       # Trigger Databricks Deployment
       - name: Trigger Databricks Deployment
         if: ${{ inputs.databricks_deployment_steps != 'none' }}
@@ -126,10 +119,10 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", 
                  "inputs": {
-                   "environment": "${{ steps.split_env_source.outputs.environment }}", 
+                   "environment": "$ENVIRONMENT", 
                    "date": "${{ inputs.date }}", 
                    "databricks_deployment_steps": "${{ inputs.databricks_deployment_steps }}", 
-                   "function_name": "${{ steps.split_env_source.outputs.source }}"
+                   "function_name": "$SOURCE"
                  }}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/databricks.yml/dispatches
 
@@ -141,10 +134,10 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", 
                  "inputs": {
-                   "environment": "${{ steps.split_env_source.outputs.environment }}", 
+                   "environment": "$ENVIRONMENT", 
                    "date": "${{ inputs.date }}", 
                    "adf_pipelines_deployment_steps": "${{ inputs.adf_pipelines_deployment_steps }}", 
-                   "function_name": "${{ steps.split_env_source.outputs.source }}"
+                   "function_name": "$SOURCE"
                  }}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_pipelines.yml/dispatches
 
@@ -156,9 +149,9 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", 
                  "inputs": {
-                   "environment": "${{ steps.split_env_source.outputs.environment }}", 
+                   "environment": "$ENVIRONMENT", 
                    "date": "${{ inputs.date }}", 
-                   "function_name": "${{ steps.split_env_source.outputs.source }}"
+                   "function_name": "$SOURCE"
                  }}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_linked_service.yml/dispatches
 
@@ -170,9 +163,9 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", 
                  "inputs": {
-                   "environment": "${{ steps.split_env_source.outputs.environment }}", 
+                   "environment": "$ENVIRONMENT", 
                    "date": "${{ inputs.date }}", 
-                   "function_name": "${{ steps.split_env_source.outputs.source }}"
+                   "function_name": "$SOURCE"
                  }}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataset.yml/dispatches
 
@@ -184,9 +177,9 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", 
                  "inputs": {
-                   "environment": "${{ steps.split_env_source.outputs.environment }}", 
+                   "environment": "$ENVIRONMENT", 
                    "date": "${{ inputs.date }}", 
-                   "function_name": "${{ steps.split_env_source.outputs.source }}"
+                   "function_name": "$SOURCE"
                  }}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_trigger.yml/dispatches
 
@@ -198,8 +191,8 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", 
                  "inputs": {
-                   "environment": "${{ steps.split_env_source.outputs.environment }}", 
+                   "environment": "$ENVIRONMENT", 
                    "date": "${{ inputs.date }}", 
-                   "function_name": "${{ steps.split_env_source.outputs.source }}"
+                   "function_name": "$SOURCE"
                  }}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataflows.yml/dispatches
