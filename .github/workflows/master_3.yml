@@ -4,10 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       deployment_params:
-        description: 'Deployment parameters (branch, environment, function_name, date)'
+        description: 'Deployment parameters (branch, environment, function_name)'
         type: string
         required: true
-        default: '{"branch": "", "environment": "dev", "function_name": "", "date": "1999-01-01"}'
+        default: '{"branch": "", "environment": "dev", "function_name": ""}'
+      date:
+        description: 'Deploy changes after a commit date (YYYY-MM-DD)'
+        type: string
+        default: '1999-01-01'
+        required: true
       databricks_deployment_steps:
         description: 'Select Databricks deployment step'
         type: choice
@@ -51,6 +56,7 @@ on:
 
 env:
   DEPLOYMENT_PARAMS: ${{ fromJson(inputs.deployment_params) }}
+  DATE: ${{ inputs.date }}
 
 jobs:
   validate_inputs:
@@ -62,28 +68,33 @@ jobs:
 
       - name: Validate Date Format
         run: |
-          if ! [[ "${{ env.DEPLOYMENT_PARAMS.date }}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+          if ! [[ "${{ env.DATE }}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
             echo "Invalid date format. Use YYYY-MM-DD."
             exit 1
           fi
 
       - name: Validate Future Date
         run: |
-          if [[ "${{ env.DEPLOYMENT_PARAMS.date }}" > "$(date +%Y-%m-%d)" ]]; then
+          if [[ "${{ env.DATE }}" > "$(date +%Y-%m-%d)" ]]; then
             echo "The specified date is in the future. Provide a valid past date."
             exit 1
           fi
 
       - name: Validate Environment Based on Branch
         run: |
-          if [[ "${{ env.DEPLOYMENT_PARAMS.branch }}" != "main" && "${{ env.DEPLOYMENT_PARAMS.environment }}" == "prod" ]]; then
+          BRANCH="${{ env.DEPLOYMENT_PARAMS.branch }}"
+          ENVIRONMENT="${{ env.DEPLOYMENT_PARAMS.environment }}"
+          
+          if [[ "$BRANCH" != "main" && "$ENVIRONMENT" == "prod" ]]; then
             echo "Production environment can only be deployed from the 'main' branch."
             exit 1
           fi
 
       - name: Validate Function Name
         run: |
-          if [[ -z "${{ env.DEPLOYMENT_PARAMS.function_name }}" ]]; then
+          FUNCTION_NAME="${{ env.DEPLOYMENT_PARAMS.function_name }}"
+          
+          if [[ -z "$FUNCTION_NAME" ]]; then
             echo "Data source (function_name) cannot be empty."
             exit 1
           fi
@@ -91,7 +102,7 @@ jobs:
       - name: Validate Deployment Inputs for ADF Steps 
         run: |
           if [[ "${{ inputs.deploy_linked_service }}" == "true" || "${{ inputs.deploy_datasets }}" == "true" || "${{ inputs.deploy_dataflows }}" == "true" ]]; then
-            if [[ "${{ env.DEPLOYMENT_PARAMS.function_name }}" == "none" ]]; then
+            if [[ "$FUNCTION_NAME" == "none" ]]; then
               echo "If deploying linked services, datasets, or dataflows, a valid function name must be provided."
               exit 1
             fi
@@ -113,7 +124,7 @@ jobs:
         run: | 
           curl -X POST \ 
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \ 
-            -d '{"ref": "refs/heads/${{ env.DEPLOYMENT_PARAMS.branch }}", "inputs": {"environment": "${{ env.DEPLOYMENT_PARAMS.environment }}", "date": "${{ env.DEPLOYMENT_PARAMS.date }}", "databricks_deployment_steps": "${{ inputs.databricks_deployment_steps }}", "function_name": "${{ env.DEPLOYMENT_PARAMS.function_name }}"}}' \ 
+            -d '{"ref": "refs/heads/${{ env.DEPLOYMENT_PARAMS.branch }}", "inputs": {"environment": "${{ env.DEPLOYMENT_PARAMS.environment }}", "date": "${{ env.DATE }}", "databricks_deployment_steps": "${{ inputs.databricks_deployment_steps }}", "function_name": "${{ env.DEPLOYMENT_PARAMS.function_name }}"}}' \ 
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/databricks.yml/dispatches 
 
       # Trigger ADF Pipelines Deployment 
@@ -122,7 +133,7 @@ jobs:
         run: | 
           curl -X POST \ 
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \ 
-            -d '{"ref": "refs/heads/${{ env.DEPLOYMENT_PARAMS.branch }}", "inputs": {"environment": "${{ env.DEPLOYMENT_PARAMS.environment }}", "date": "${{ env.DEPLOYMENT_PARAMS.date }}", "adf_pipelines_deployment_steps": "${{ inputs.adf_pipelines_deployment_steps }}", "function_name": "${{ env.DEPLOYMENT_PARAMS.function_name }}"}}' \ 
+            -d '{"ref": "refs/heads/${{ env.DEPLOYMENT_PARAMS.branch }}", "inputs": {"environment": "${{ env.DEPLOYMENT_PARAMS.environment }}", "date": "${{ env.DATE }}", "adf_pipelines_deployment_steps": "${{ inputs.adf_pipelines_deployment_steps }}", "function_name": "${{ env.DEPLOYMENT_PARAMS.function_name }}"}}' \ 
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_pipelines.yml/dispatches 
 
       # Trigger ADF Linked Services Deployment 
@@ -131,7 +142,7 @@ jobs:
         run: | 
           curl -X POST \ 
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \ 
-            -d '{"ref": "refs/heads/${{ env.DEPLOYMENT_PARAMS.branch }}", "inputs": {"environment": "${{ env.DEPLOYMENT_PARAMS.environment }}", "date": "${{ env.DEPLOYMENT_PARAMS.date }}", "function_name": "${{ env.DEPLOYMENT_PARAMS.function_name }}"}}' \ 
+            -d '{"ref": "refs/heads/${{ env.DEPLOYMENT_PARAMS.branch }}", "inputs": {"environment": "${{ env.DEPLOYMENT_PARAMS.environment }}", "date": "${{ env.DATE }}", "function_name": "${{ env.DEPLOYMENT_PARAMS.function_name }}"}}' \ 
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_linked_service.yml/dispatches 
 
       # Trigger ADF Datasets Deployment 
@@ -140,7 +151,7 @@ jobs:
         run: | 
           curl -X POST \ 
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \ 
-            -d '{"ref": "refs/heads/${{ env.DEPLOYMENT_PARAMS.branch }}", "inputs": {"environment": "${{ env.DEPLOYMENT_PARAMS.environment }}", "date": "${{ env.DEPLOYMENT_PARAMS.date }}", "function_name": "${{ env.DEPLOYMENT_PARAMS.function_name }}"}}' \ 
+            -d '{"ref": "refs/heads/${{ env.DEPLOYMENT_PARAMS.branch }}", "inputs": {"environment": "${{ env.DEPLOYMENT_PARAMS.environment }}", "date": "${{ env.DATE }}", "function_name": "${{ env.DEPLOYMENT_PARAMS.function_name }}"}}' \ 
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataset.yml/dispatches 
 
       # Trigger ADF Triggers Deployment 
@@ -149,7 +160,7 @@ jobs:
         run: | 
           curl -X POST \ 
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \ 
-            -d '{"ref": "refs/heads/${{ env.DEPLOYMENT_PARAMS.branch }}", "inputs": {"environment": "${{ env.DEPLOYMENT_PARAMS.environment }}", "date": "${{ env.DEPLOYMENT_PARAMS.date }}", "function_name": "${{ env.DEPLOYMENT_PARAMS.function_name }}"}}' \ 
+            -d '{"ref": "refs/heads/${{ env.DEPLOYMENT_PARAMS.branch }}", "inputs": {"environment": "${{ env.DEPLOYMENT_PARAMS.environment }}", "date": "${{ env.DATE }}", "function_name": "${{ env.DEPLOYMENT_PARAMS.function_name }}"}}' \ 
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_trigger.yml/dispatches 
 
       # Trigger ADF Dataflows Deployment 
@@ -158,6 +169,6 @@ jobs:
         run: | 
           curl -X POST \ 
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \ 
-            -d '{"ref": "refs/heads/${{ env.DEPLOYMENT_PARAMS.branch }}", "inputs": {"environment": "${{ env.DEPLOYMENT_PARAMS.environment }}", "date": "${{ env.DEPLOYMENT_PARAMS.date }}", "function_name": "${{ env.DEPLOYMENT_PARAMS.function_name }}"}}' \ 
+            -d '{"ref": "refs/heads/${{ env.DEPLOYMENT_PARAMS.branch }}", "inputs": {"environment": "${{ env.DEPLOYMENT_PARAMS.environment }}", "date": "${{ env.DATE }}", "function_name": "${{ env.DEPLOYMENT_PARAMS.function_name }}"}}' \ 
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataflows.yml/dispatches 
 
