@@ -1,4 +1,4 @@
-name: Master Deployment Workflow_testing
+name: Master Deployment Workflow_Testing
 
 on:
   workflow_dispatch:
@@ -59,6 +59,7 @@ on:
 
 env:
   DATE: ${{ inputs.date }}
+  DEFAULT_BRANCH: main
 
 jobs:
   validate_inputs:
@@ -69,41 +70,49 @@ jobs:
         run: |
           CONFIG_JSON='${{ inputs.deployment_config }}'
           echo "Parsing deployment configuration: $CONFIG_JSON"
-          BRANCH=$(echo "$CONFIG_JSON" | jq -r '.BRANCH')
+          BRANCH=$(echo "$CONFIG_JSON" | jq -r '.BRANCH // env.DEFAULT_BRANCH')
           SOURCE=$(echo "$CONFIG_JSON" | jq -r '.SOURCE')
           ENV=$(echo "$CONFIG_JSON" | jq -r '.ENV')
-          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+          echo "BRANCH=${BRANCH:-$DEFAULT_BRANCH}" >> $GITHUB_ENV
           echo "SOURCE=$SOURCE" >> $GITHUB_ENV
           echo "ENV=$ENV" >> $GITHUB_ENV
 
+      - name: Validate Branch Exists
+        run: |
+          BRANCH=${{ env.BRANCH }}
+          if ! git ls-remote --heads origin "refs/heads/$BRANCH" | grep -q "$BRANCH"; then
+            echo "Branch '$BRANCH' does not exist in the repository."
+            exit 1
+          fi
+
       - name: Validate Date Format
         run: |
-          if ! [[ "$DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+          if ! [[ "${{ env.DATE }}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
             echo "Invalid date format. Use YYYY-MM-DD."
             exit 1
           fi
 
       - name: Validate Future Date
         run: |
-          if [[ "$DATE" > "$(date +%Y-%m-%d)" ]]; then
+          if [[ "${{ env.DATE }}" > "$(date +%Y-%m-%d)" ]]; then
             echo "The specified date is in the future. Provide a valid past date."
             exit 1
           fi
 
       - name: Validate ENV Based on BRANCH
         run: |
-          if [[ "$BRANCH" != "main" && "$ENV" == "prod" ]]; then
-            echo "Production ENV can only be deployed from the 'main' BRANCH."
+          if [[ "${{ env.BRANCH }}" != "main" && "${{ env.ENV }}" == "prod" ]]; then
+            echo "Production ENV can only be deployed from the 'main' branch."
             exit 1
           fi
-          if [[ "$BRANCH" != "qa" && "$BRANCH" != "main" && "$ENV" == "qa" ]]; then
-            echo "QA ENV can only be deployed from the 'qa' or 'main' BRANCH."
+          if [[ "${{ env.BRANCH }}" != "qa" && "${{ env.BRANCH }}" != "main" && "${{ env.ENV }}" == "qa" ]]; then
+            echo "QA ENV can only be deployed from the 'qa' or 'main' branch."
             exit 1
           fi
 
       - name: Validate Source Name
         run: |
-          if [[ -z "$SOURCE" ]]; then
+          if [[ -z "${{ env.SOURCE }}" ]]; then
             echo "Data SOURCE (SOURCE) cannot be empty."
             exit 1
           fi
@@ -118,56 +127,50 @@ jobs:
         with:
           ref: ${{ env.BRANCH }}
 
-      # Trigger Databricks Deployment
       - name: Trigger Databricks Deployment
         if: ${{ inputs.databricks_deployment_steps != 'none' }}
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d '{"ref": "refs/heads/'${{ env.BRANCH }}'", "inputs": {"ENV": "'${{ env.ENV }}'", "date": "'$DATE'", "databricks_deployment_steps": "'${{ inputs.databricks_deployment_steps }}'", "SOURCE": "'${{ env.SOURCE }}'"}}' \
+            -d '{"ref": "refs/heads/'${{ env.BRANCH }}'", "inputs": {"ENV": "'${{ env.ENV }}'", "date": "'${{ env.DATE }}'", "databricks_deployment_steps": "'${{ inputs.databricks_deployment_steps }}'", "SOURCE": "'${{ env.SOURCE }}'"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/databricks.yml/dispatches
 
-      # Trigger ADF Pipelines Deployment
       - name: Trigger ADF Pipelines Deployment
         if: ${{ inputs.adf_pipelines_deployment_steps != 'none' }}
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d '{"ref": "refs/heads/'${{ env.BRANCH }}'", "inputs": {"ENV": "'${{ env.ENV }}'", "date": "'$DATE'", "adf_pipelines_deployment_steps": "'${{ inputs.adf_pipelines_deployment_steps }}'", "SOURCE": "'${{ env.SOURCE }}'"}}' \
+            -d '{"ref": "refs/heads/'${{ env.BRANCH }}'", "inputs": {"ENV": "'${{ env.ENV }}'", "date": "'${{ env.DATE }}'", "adf_pipelines_deployment_steps": "'${{ inputs.adf_pipelines_deployment_steps }}'", "SOURCE": "'${{ env.SOURCE }}'"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_pipelines.yml/dispatches
 
-      # Trigger ADF Linked Services Deployment
       - name: Trigger ADF Linked Services Deployment
         if: ${{ inputs.deploy_linked_service == true }}
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d '{"ref": "refs/heads/'${{ env.BRANCH }}'", "inputs": {"ENV": "'${{ env.ENV }}'", "date": "'$DATE'", "SOURCE": "'${{ env.SOURCE }}'"}}' \
+            -d '{"ref": "refs/heads/'${{ env.BRANCH }}'", "inputs": {"ENV": "'${{ env.ENV }}'", "date": "'${{ env.DATE }}'", "SOURCE": "'${{ env.SOURCE }}'"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_linked_service.yml/dispatches
 
-      # Trigger ADF Datasets Deployment
       - name: Trigger ADF Datasets Deployment
         if: ${{ inputs.deploy_datasets == true }}
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d '{"ref": "refs/heads/'${{ env.BRANCH }}'", "inputs": {"ENV": "'${{ env.ENV }}'", "date": "'$DATE'", "SOURCE": "'${{ env.SOURCE }}'"}}' \
+            -d '{"ref": "refs/heads/'${{ env.BRANCH }}'", "inputs": {"ENV": "'${{ env.ENV }}'", "date": "'${{ env.DATE }}'", "SOURCE": "'${{ env.SOURCE }}'"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataset.yml/dispatches
 
-      # Trigger ADF Triggers Deployment
       - name: Trigger ADF Triggers Deployment
         if: ${{ inputs.deploy_triggers == true }}
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d '{"ref": "refs/heads/'${{ env.BRANCH }}'", "inputs": {"ENV": "'${{ env.ENV }}'", "date": "'$DATE'", "SOURCE": "'${{ env.SOURCE }}'"}}' \
+            -d '{"ref": "refs/heads/'${{ env.BRANCH }}'", "inputs": {"ENV": "'${{ env.ENV }}'", "date": "'${{ env.DATE }}'", "SOURCE": "'${{ env.SOURCE }}'"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_trigger.yml/dispatches
 
-      # Trigger ADF Dataflows Deployment
       - name: Trigger ADF Dataflows Deployment
         if: ${{ inputs.deploy_dataflows == true }}
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d '{"ref": "refs/heads/'${{ env.BRANCH }}'", "inputs": {"ENV": "'${{ env.ENV }}'", "date": "'$DATE'", "SOURCE": "'${{ env.SOURCE }}'"}}' \
+            -d '{"ref": "refs/heads/'${{ env.BRANCH }}'", "inputs": {"ENV": "'${{ env.ENV }}'", "date": "'${{ env.DATE }}'", "SOURCE": "'${{ env.SOURCE }}'"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataflows.yml/dispatches
