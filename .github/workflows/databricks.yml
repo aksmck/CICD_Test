@@ -4,15 +4,19 @@ on:
   workflow_dispatch:
     inputs:
       ENV:
+        description: 'ENV'
         type: string
         required: true
       date:
+        description: 'Commit date'
         type: string
         required: true
-      databricks_deployment_steps:
+      deployment_steps:
+        description: 'Deployment steps (e.g., ingestion_utilities, ddl, dml, or all)'
         type: string
         required: true
       SOURCE:
+        description: 'SOURCE directory'
         type: string
         required: true
 
@@ -20,32 +24,17 @@ env:
   ENV: ${{ inputs.ENV }}
   DATE: ${{ inputs.date }}
   SOURCE: ${{ inputs.SOURCE }}
-  BRANCH: ${{ github.event.inputs.BRANCH || github.ref_name }} # Default to current branch if not provided
+  BRANCH: ${{ github.ref_name }}
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
         with:
-          ref: ${{ env.BRANCH }} # Ensure the correct branch is checked out
-
-      # Step to get changed files since the specified date
-      - name: Get changed files since
-        id: changed-files-since
-        uses: tj-actions/changed-files@v37
-        with:
-          since: "${{ env.DATE }}"
-          files: |
-            # Check for changes in common/utils/ if ingestion_utilities is selected
-            ${{ contains(inputs.databricks_deployment_steps, 'ingestion_utilities') && 'common/utils/' || '' }}
-            
-            # Check for changes in dataproducts/${{ inputs.SOURCE }}/ddls/ if ddl is selected
-            ${{ contains(inputs.databricks_deployment_steps, 'ddl') && 'dataproducts/${{ inputs.SOURCE }}/ddls/' || '' }}
-            
-            # Check for changes in dataproducts/${{ inputs.SOURCE }}/dmls/ if dml is selected
-            ${{ contains(inputs.databricks_deployment_steps, 'dml') && 'dataproducts/${{ inputs.SOURCE }}/dmls/' || '' }}
+          ref: ${{ env.BRANCH }}
 
       - name: Install Databricks CLI
         run: |
@@ -68,28 +57,77 @@ jobs:
               ;;
           esac
 
-      - name: Deploy Databricks Files
+      - name: Get changed files since specified date
+        id: changed-files
+        uses: tj-actions/changed-files@v37
+        with:
+          since: "${{ env.DATE }}"
+          files: |
+            ${{ inputs.deployment_steps == 'ingestion_utilities' || inputs.deployment_steps == 'all' && 'common/utils/' || '' }}
+            ${{ inputs.deployment_steps == 'ddl' || inputs.deployment_steps == 'all' && 'dataproducts/${{ inputs.SOURCE }}/ddls/' || '' }}
+            ${{ inputs.deployment_steps == 'dml' || inputs.deployment_steps == 'all' && 'dataproducts/${{ inputs.SOURCE }}/dmls/' || '' }}
+
+      - name: Validate and Debug Files
         run: |
-          BASE_PATH="/Workspace/Users/s2ek20b@mckesson.com/CICD_TEST"
-          echo "Deploying to Databricks for ENV: ${{ env.ENV }} after date: ${{ env.DATE }}"
+          CHANGED_FILES="${{ steps.changed-files.outputs.all_changed_files }}"
+          echo "Changed files: $CHANGED_FILES"
 
-          if [[ "${{ inputs.databricks_deployment_steps }}" == "ingestion_utilities" || "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
-              echo "Deploying Ingestion Utilities..."
-              databricks workspace import_dir "common/utils/" "${BASE_PATH}/common/utils/" --overwrite 
+          if [[ -z "$CHANGED_FILES" ]]; then
+            echo "No changed files detected. Exiting."
+            exit 0
           fi
 
-          if [[ "${{ inputs.databricks_deployment_steps }}" == "ddl" || "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
-              echo "Deploying DDL files..."
-              databricks workspace import_dir "dataproducts/${{ inputs.SOURCE }}/ddls/" "${BASE_PATH}/dataproducts/${{ inputs.SOURCE }}/ddls/" --overwrite 
-          fi
+          for file in $CHANGED_FILES; do
+            echo "Validating file: $file"
+            if [[ "$file" == *.py ]]; then
+              python -m py_compile "$file"
+              if [[ $? -ne 0 ]]; then
+                echo "Syntax error in $file"
+                exit 1
+              fi
+            elif [[ "$file" == *.ipynb ]]; then
+              # Check if the notebook is valid JSON
+              if ! jq empty "$file" >/dev/null; then
+                echo "Invalid notebook JSON structure in $file"
+                exit 1
+              fi
+            else
+              echo "Skipping unsupported file type: $file"
+            fi
+          done
 
-          if [[ "${{ inputs.databricks_deployment_steps }}" == "dml" || "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
-              echo "Deploying DML files..."
-              databricks workspace import_dir "dataproducts/${{ inputs.SOURCE }}/dmls/" "${BASE_PATH}/dataproducts/${{ inputs.SOURCE }}/dmls/" --overwrite 
-          fi
-
-      - name: Clean up temporary directories
+      - name: Deploy to Databricks
         run: |
-          echo "Cleaning up temporary directories..."
+          BASE_PATH="/Workspace/Users/username@example.com/CICD_TEST"
+
+          for step in ingestion_utilities ddl dml; do
+            if [[ "${{ inputs.deployment_steps }}" == "$step" || "${{ inputs.deployment_steps }}" == "all" ]]; then
+              case "$step" in
+                ingestion_utilities)
+                  SOURCE_PATH="common/utils/"
+                  TARGET_PATH="${BASE_PATH}/common/utils/"
+                  ;;
+                ddl)
+                  SOURCE_PATH="dataproducts/${{ inputs.SOURCE }}/ddls/"
+                  TARGET_PATH="${BASE_PATH}/dataproducts/${{ inputs.SOURCE }}/ddls/"
+                  ;;
+                dml)
+                  SOURCE_PATH="dataproducts/${{ inputs.SOURCE }}/dmls/"
+                  TARGET_PATH="${BASE_PATH}/dataproducts/${{ inputs.SOURCE }}/dmls/"
+                  ;;
+              esac
+
+              echo "Deploying $step from $SOURCE_PATH to $TARGET_PATH"
+              databricks workspace import_dir "$SOURCE_PATH" "$TARGET_PATH" --overwrite
+              if [[ $? -ne 0 ]]; then
+                echo "Error deploying $step files from $SOURCE_PATH"
+                exit 1
+              fi
+            fi
+          done
+
+      - name: Cleanup
+        run: |
+          echo "Cleaning up temporary directories."
           rm -rf /tmp/cu/py/
           rm -rf /tmp/cu/ddl_dml/
