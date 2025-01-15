@@ -91,20 +91,4 @@ jobs:
           fi
 
           # Deploy DDL files if selected
-          if [[ "${{ inputs.databricks_deployment_steps }}" == "ddl" || "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
-              echo "Deploying DDL files..."
-              databricks workspace import_dir "dataproducts/${{ env.FUNCTION_NAME }}/ddls/" "${BASE_PATH}/dataproducts/${{ env.FUNCTION_NAME }}/ddls/" --overwrite 
-          fi
-
-          # Deploy DML files if selected
-          if [[ "${{ inputs.databricks_deployment_steps }}" == "dml" || "${{ inputs.databricks_deployment_steps }}" == "all" ]]; then
-              echo "Deploying DML files..."
-              databricks workspace import_dir "dataproducts/${{ env.FUNCTION_NAME }}/dmls/" "${BASE_PATH}/dataproducts/${{ env.FUNCTION_NAME }}/dmls/" --overwrite 
-          fi
-
-      # Clean up temporary directories (if needed)
-      - name: Clean up temporary directories
-        run: |
-          echo "Cleaning up temporary directories..."
-          rm -rf /tmp/cu/py/
-          rm -rf /tmp/cu/ddl_dml/
+          if [[ "${{ inputs.databricks_deployment_steps }}" == "ddl" || "${{ inputs.dat
