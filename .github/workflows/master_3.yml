@@ -68,17 +68,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Split Environment and Source
+        id: split_env_source
         run: |
           ENVIRONMENT=$(echo "${{ inputs.environment_source }}" | cut -d':' -f1)
           SOURCE=$(echo "${{ inputs.environment_source }}" | cut -d':' -f2)
           echo "Environment: $ENVIRONMENT"
           echo "Source: $SOURCE"
           
-          # Validate environment and source
-          if [[ -z "$ENVIRONMENT" || -z "$SOURCE" ]]; then
-            echo "Both environment and source must be provided."
-            exit 1
-          fi
+          # Store values as outputs
+          echo "::set-output name=environment::$ENVIRONMENT"
+          echo "::set-output name=source::$SOURCE"
 
       - name: Validate Date Format
         run: |
@@ -97,7 +96,7 @@ jobs:
       - name: Validate Deployment Inputs
         run: |
           if [[ "${{ inputs.deploy_linked_service }}" == "true" || "${{ inputs.deploy_datasets }}" == "true" || "${{ inputs.deploy_dataflows }}" == "true" ]]; then
-            if [[ "$SOURCE" == "none" ]]; then
+            if [[ "${{ steps.split_env_source.outputs.source }}" == "none" ]]; then
               echo "If deploying linked services, datasets, or dataflows, a valid function name (source) must be provided."
               exit 1
             fi
@@ -112,10 +111,10 @@ jobs:
         with:
           ref: ${{ inputs.branch }}
 
-      - name: Split Environment and Source
+      - name: Set Environment and Source as Variables
         run: |
-          ENVIRONMENT=$(echo "${{ inputs.environment_source }}" | cut -d':' -f1)
-          SOURCE=$(echo "${{ inputs.environment_source }}" | cut -d':' -f2)
+          ENVIRONMENT="${{ steps.split_env_source.outputs.environment }}"
+          SOURCE="${{ steps.split_env_source.outputs.source }}"
           echo "Environment: $ENVIRONMENT"
           echo "Source: $SOURCE"
 
@@ -127,10 +126,10 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", 
                  "inputs": {
-                   "environment": "${{ inputs.environment_source.split(':')[0] }}", 
+                   "environment": "${{ steps.split_env_source.outputs.environment }}", 
                    "date": "${{ inputs.date }}", 
                    "databricks_deployment_steps": "${{ inputs.databricks_deployment_steps }}", 
-                   "function_name": "${{ inputs.environment_source.split(':')[1] }}"
+                   "function_name": "${{ steps.split_env_source.outputs.source }}"
                  }}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/databricks.yml/dispatches
 
@@ -142,10 +141,10 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", 
                  "inputs": {
-                   "environment": "${{ inputs.environment_source.split(':')[0] }}", 
+                   "environment": "${{ steps.split_env_source.outputs.environment }}", 
                    "date": "${{ inputs.date }}", 
                    "adf_pipelines_deployment_steps": "${{ inputs.adf_pipelines_deployment_steps }}", 
-                   "function_name": "${{ inputs.environment_source.split(':')[1] }}"
+                   "function_name": "${{ steps.split_env_source.outputs.source }}"
                  }}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_pipelines.yml/dispatches
 
@@ -157,9 +156,9 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", 
                  "inputs": {
-                   "environment": "${{ inputs.environment_source.split(':')[0] }}", 
+                   "environment": "${{ steps.split_env_source.outputs.environment }}", 
                    "date": "${{ inputs.date }}", 
-                   "function_name": "${{ inputs.environment_source.split(':')[1] }}"
+                   "function_name": "${{ steps.split_env_source.outputs.source }}"
                  }}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_linked_service.yml/dispatches
 
@@ -171,9 +170,9 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", 
                  "inputs": {
-                   "environment": "${{ inputs.environment_source.split(':')[0] }}", 
+                   "environment": "${{ steps.split_env_source.outputs.environment }}", 
                    "date": "${{ inputs.date }}", 
-                   "function_name": "${{ inputs.environment_source.split(':')[1] }}"
+                   "function_name": "${{ steps.split_env_source.outputs.source }}"
                  }}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataset.yml/dispatches
 
@@ -185,9 +184,9 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", 
                  "inputs": {
-                   "environment": "${{ inputs.environment_source.split(':')[0] }}", 
+                   "environment": "${{ steps.split_env_source.outputs.environment }}", 
                    "date": "${{ inputs.date }}", 
-                   "function_name": "${{ inputs.environment_source.split(':')[1] }}"
+                   "function_name": "${{ steps.split_env_source.outputs.source }}"
                  }}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_trigger.yml/dispatches
 
@@ -199,8 +198,8 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", 
                  "inputs": {
-                   "environment": "${{ inputs.environment_source.split(':')[0] }}", 
+                   "environment": "${{ steps.split_env_source.outputs.environment }}", 
                    "date": "${{ inputs.date }}", 
-                   "function_name": "${{ inputs.environment_source.split(':')[1] }}"
+                   "function_name": "${{ steps.split_env_source.outputs.source }}"
                  }}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataflows.yml/dispatches
