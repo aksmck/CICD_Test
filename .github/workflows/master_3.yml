@@ -1,4 +1,4 @@
-name: Master Deployment Workflow_3
+name: Master Deployment Workflow
 
 on:
   workflow_dispatch:
@@ -61,6 +61,11 @@ jobs:
   validate_inputs:
     runs-on: ubuntu-latest
     steps:
+      - name: Debug Deployment Params Input
+        run: |
+          echo "Deployment Params Input:"
+          echo "${{ inputs.deployment_params }}"
+
       - name: Validate Inputs JSON Structure
         run: |
           echo "${{ inputs.deployment_params }}" | jq empty || { echo "Invalid JSON structure for deployment_params"; exit 1; }
