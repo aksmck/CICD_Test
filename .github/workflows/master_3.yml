@@ -1,4 +1,4 @@
-name: Master Deployment Workflow_3
+name: Master Deployment Workflow_testing
 
 on:
   workflow_dispatch:
@@ -58,7 +58,10 @@ on:
         required: false
 
 env:
+  ENV: ${{ inputs.ENV }}
   DATE: ${{ inputs.date }}
+  BRANCH: ${{ inputs.BRANCH }}
+  SOURCE: ${{ inputs.SOURCE }}
 
 jobs:
   validate_inputs:
