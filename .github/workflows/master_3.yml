@@ -1,4 +1,4 @@
-name: Master Deployment Workflow
+name: Master Deployment Workflow_3
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ on:
         required: true
         default: ''
       environment:
-        description: 'Environment to deploy'
+        description: 'Environment to deploy (e.g., dev, qa, prod)'
         type: choice
         options:
           - dev
@@ -26,7 +26,7 @@ on:
         default: '1999-01-01'
         required: true
       databricks_deployment_steps:
-        description: 'Select Databricks deployment step'
+        description: 'Select Databricks deployment step (e.g., none, ddl, dml, all)'
         type: choice
         options:
           - none
@@ -36,15 +36,7 @@ on:
         required: false
         default: 'none'
       adf_deployment_steps:
-        description: |
-          'Enter ADF deployment steps as a comma-separated list of shortforms. 
-          Available shortforms:
-          - LS: Deploy ADF Linked Services
-          - DS: Deploy ADF Datasets
-          - TR: Deploy ADF Triggers
-          - DF: Deploy ADF Dataflows
-
-          Example: LS, DS, TR, DF (to deploy Linked Services, Datasets, Triggers, and Dataflows)'
+        description: 'Specify ADF components to deploy (e.g., LS, DS, TR, DF). Example: LS, DS, TR, DF (to deploy Linked Services, Datasets, Triggers, and Dataflows)'
         type: string
         required: false
         default: ''
