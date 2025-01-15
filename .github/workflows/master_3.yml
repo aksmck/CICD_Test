@@ -1,4 +1,4 @@
-name: Master Deployment Workflow_3
+name: Master Deployment Workflow
 
 on:
   workflow_dispatch:
@@ -36,16 +36,19 @@ on:
         required: false
         default: 'none'
       adf_deployment_steps:
-        description: 'Enter ADF deployment steps as a comma-separated list. Available shortforms:'
+        description: |
+          'Enter ADF deployment steps as a comma-separated list of shortforms. 
+          Available shortforms:
+          - LS: Deploy ADF Linked Services
+          - DS: Deploy ADF Datasets
+          - TR: Deploy ADF Triggers
+          - DF: Deploy ADF Dataflows
+
+          Example: LS, DS, TR, DF (to deploy Linked Services, Datasets, Triggers, and Dataflows)'
         type: string
         required: false
         default: ''
-        options:
-          - 'LS': Deploy ADF Linked Services'
-          - 'DS': Deploy ADF Datasets'
-          - 'TR': Deploy ADF Triggers'
-          - 'DF': Deploy ADF Dataflows'
-        example: 'Example: LS, DS, TR, DF (to deploy Linked Services, Datasets, Triggers, and Dataflows)'
+        example: 'LS, DS, TR, DF'
 
 env:
   ENVIRONMENT: ${{ inputs.environment }}
