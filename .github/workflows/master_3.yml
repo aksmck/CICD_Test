@@ -36,26 +36,16 @@ on:
         required: false
         default: 'none'
       adf_deployment_steps:
-        description: 'Enter ADF deployment steps as a comma-separated list (e.g., LS, DS, TR, DF)'
+        description: 'Enter ADF deployment steps as a comma-separated list. Available shortforms:'
         type: string
         required: false
         default: ''
-      deploy_linked_service:
-        description: 'Deploy ADF Linked Services'
-        type: boolean
-        required: false
-      deploy_datasets:
-        description: 'Deploy ADF Datasets'
-        type: boolean
-        required: false
-      deploy_triggers:
-        description: 'Deploy ADF Triggers'
-        type: boolean
-        required: false
-      deploy_dataflows:
-        description: 'Deploy ADF Dataflows'
-        type: boolean
-        required: false
+        options:
+          - 'LS': Deploy ADF Linked Services'
+          - 'DS': Deploy ADF Datasets'
+          - 'TR': Deploy ADF Triggers'
+          - 'DF': Deploy ADF Dataflows'
+        example: 'Example: LS, DS, TR, DF (to deploy Linked Services, Datasets, Triggers, and Dataflows)'
 
 env:
   ENVIRONMENT: ${{ inputs.environment }}
