@@ -9,10 +9,10 @@ on:
         required: true
         default: ''
       environment_source:
-        description: 'Combined environment and source (e.g., "dev-MPB-MNC")'
+        description: 'Combined environment and source (e.g., "dev:MPB-MNC")'
         type: string
         required: true
-        default: 'dev-MPB-MNC'
+        default: 'dev:MPB-MNC'
       date:
         description: 'Deploy changes after a commit date (YYYY-MM-DD)'
         type: string
@@ -69,8 +69,8 @@ jobs:
     steps:
       - name: Split Environment and Source
         run: |
-          ENVIRONMENT=$(echo "${{ inputs.environment_source }}" | cut -d'-' -f1)
-          SOURCE=$(echo "${{ inputs.environment_source }}" | cut -d'-' -f2)
+          ENVIRONMENT=$(echo "${{ inputs.environment_source }}" | cut -d':' -f1)
+          SOURCE=$(echo "${{ inputs.environment_source }}" | cut -d':' -f2)
           echo "Environment: $ENVIRONMENT"
           echo "Source: $SOURCE"
           
@@ -114,8 +114,8 @@ jobs:
 
       - name: Split Environment and Source
         run: |
-          ENVIRONMENT=$(echo "${{ inputs.environment_source }}" | cut -d'-' -f1)
-          SOURCE=$(echo "${{ inputs.environment_source }}" | cut -d'-' -f2)
+          ENVIRONMENT=$(echo "${{ inputs.environment_source }}" | cut -d':' -f1)
+          SOURCE=$(echo "${{ inputs.environment_source }}" | cut -d':' -f2)
           echo "Environment: $ENVIRONMENT"
           echo "Source: $SOURCE"
 
