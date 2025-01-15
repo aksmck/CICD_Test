@@ -36,7 +36,7 @@ on:
         required: false
         default: 'none'
       adf_deployment_steps:
-        description: 'Specify ADF components to deploy (e.g., LS, DS, TR, DF to deploy Linked Services, Datasets, Triggers, and Dataflows respectively)'
+        description: 'Specify ADF components to deploy (ex: LS, DS, TR, DF to deploy Linked Services, Datasets, Triggers, and Data Flows respectively)'
         type: string
         required: false
         default: ''
