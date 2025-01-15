@@ -1,5 +1,5 @@
 name: Master Deployment Workflow_testing
- 
+
 on:
   workflow_dispatch:
     inputs:
@@ -58,11 +58,11 @@ on:
         description: 'Deploy ADF Dataflows'
         type: boolean
         required: false
- 
+
 env:
   DATE: ${{ inputs.date }}
   BRANCH: ${{ inputs.branch }}
- 
+
 jobs:
   validate_inputs:
     runs-on: ubuntu-latest
@@ -73,26 +73,27 @@ jobs:
           SOURCE=$(echo "${{ inputs.environment_source }}" | cut -d':' -f2)
           echo "Environment: $ENVIRONMENT"
           echo "Source: $SOURCE"
+          
           # Validate environment and source
           if [[ -z "$ENVIRONMENT" || -z "$SOURCE" ]]; then
             echo "Both environment and source must be provided."
             exit 1
           fi
- 
+
       - name: Validate Date Format
         run: |
           if ! [[ "${{ inputs.date }}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
             echo "Invalid date format. Use YYYY-MM-DD."
             exit 1
           fi
- 
+
       - name: Validate Future Date
         run: |
           if [[ "${{ inputs.date }}" > "$(date +%Y-%m-%d)" ]]; then
             echo "The specified date is in the future. Provide a valid past date."
             exit 1
           fi
- 
+
       - name: Validate Deployment Inputs
         run: |
           if [[ "${{ inputs.deploy_linked_service }}" == "true" || "${{ inputs.deploy_datasets }}" == "true" || "${{ inputs.deploy_dataflows }}" == "true" ]]; then
@@ -101,7 +102,7 @@ jobs:
               exit 1
             fi
           fi
- 
+
   trigger_workflows:
     needs: validate_inputs
     runs-on: ubuntu-latest
@@ -110,14 +111,14 @@ jobs:
         uses: actions/checkout@v2
         with:
           ref: ${{ inputs.branch }}
- 
+
       - name: Split Environment and Source
         run: |
           ENVIRONMENT=$(echo "${{ inputs.environment_source }}" | cut -d':' -f1)
           SOURCE=$(echo "${{ inputs.environment_source }}" | cut -d':' -f2)
           echo "Environment: $ENVIRONMENT"
           echo "Source: $SOURCE"
- 
+
       # Trigger Databricks Deployment
       - name: Trigger Databricks Deployment
         if: ${{ inputs.databricks_deployment_steps != 'none' }}
@@ -131,8 +132,8 @@ jobs:
                    "databricks_deployment_steps": "${{ inputs.databricks_deployment_steps }}", 
                    "function_name": "${{ inputs.environment_source.split(':')[1] }}"
                  }}' \
-https://api.github.com/repos/${{ github.repository }}/actions/workflows/databricks.yml/dispatches
- 
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/databricks.yml/dispatches
+
       # Trigger ADF Pipelines Deployment
       - name: Trigger ADF Pipelines Deployment
         if: ${{ inputs.adf_pipelines_deployment_steps != 'none' }}
@@ -146,8 +147,8 @@ https://api.github.com/repos/${{ github.repository }}/actions/workflows/databric
                    "adf_pipelines_deployment_steps": "${{ inputs.adf_pipelines_deployment_steps }}", 
                    "function_name": "${{ inputs.environment_source.split(':')[1] }}"
                  }}' \
-https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_pipelines.yml/dispatches
- 
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_pipelines.yml/dispatches
+
       # Trigger ADF Linked Services Deployment
       - name: Trigger ADF Linked Services Deployment
         if: ${{ inputs.deploy_linked_service == true }}
@@ -160,8 +161,8 @@ https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_pipe
                    "date": "${{ inputs.date }}", 
                    "function_name": "${{ inputs.environment_source.split(':')[1] }}"
                  }}' \
-https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_linked_service.yml/dispatches
- 
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_linked_service.yml/dispatches
+
       # Trigger ADF Datasets Deployment
       - name: Trigger ADF Datasets Deployment
         if: ${{ inputs.deploy_datasets == true }}
@@ -174,8 +175,8 @@ https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_link
                    "date": "${{ inputs.date }}", 
                    "function_name": "${{ inputs.environment_source.split(':')[1] }}"
                  }}' \
-https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataset.yml/dispatches
- 
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataset.yml/dispatches
+
       # Trigger ADF Triggers Deployment
       - name: Trigger ADF Triggers Deployment
         if: ${{ inputs.deploy_triggers == true }}
@@ -188,8 +189,8 @@ https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_data
                    "date": "${{ inputs.date }}", 
                    "function_name": "${{ inputs.environment_source.split(':')[1] }}"
                  }}' \
-https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_trigger.yml/dispatches
- 
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_trigger.yml/dispatches
+
       # Trigger ADF Dataflows Deployment
       - name: Trigger ADF Dataflows Deployment
         if: ${{ inputs.deploy_dataflows == true }}
@@ -202,4 +203,4 @@ https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_trig
                    "date": "${{ inputs.date }}", 
                    "function_name": "${{ inputs.environment_source.split(':')[1] }}"
                  }}' \
-https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataflows.yml/dispatches
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataflows.yml/dispatches
