@@ -81,6 +81,13 @@ jobs:
           echo "ENV=$ENV" >> $GITHUB_ENV
           echo "FUNCTION_NAME=$FUNCTION_NAME" >> $GITHUB_ENV
 
+      - name: Debug Extracted Variables
+        run: |
+          echo "Deployment Context: ${{ inputs.deployment_context }}"
+          echo "Extracted BRANCH: ${{ env.BRANCH }}"
+          echo "Extracted ENV: ${{ env.ENV }}"
+          echo "Extracted FUNCTION_NAME: ${{ env.FUNCTION_NAME }}"
+
       - name: Validate Date Format
         run: |
           if ! [[ "${{ inputs.date }}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
