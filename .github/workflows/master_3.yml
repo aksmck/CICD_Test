@@ -66,11 +66,15 @@ jobs:
         run: |
           DEPLOYMENT_CONTEXT="${{ inputs.deployment_context }}"
           
-          # Extract branch, environment, and function_name using colon ':' separator
-          BRANCH="${DEPLOYMENT_CONTEXT%%:*}"  # Extract everything before the first colon
-          ENV="${DEPLOYMENT_CONTEXT#*:}"      # Remove everything up to and including the first colon
-          ENV="${ENV%%:*}"                    # Now remove everything after the next colon to get the environment
-          FUNCTION_NAME="${DEPLOYMENT_CONTEXT##*:}"  # Extract everything after the last colon
+          # Ensure there are at least two colons (i.e., branch:environment:function_name)
+          if [[ "$DEPLOYMENT_CONTEXT" =~ ^([^:]+):([^:]+):(.+)$ ]]; then
+            BRANCH="${BASH_REMATCH[1]}"    # Extract branch
+            ENV="${BASH_REMATCH[2]}"       # Extract environment
+            FUNCTION_NAME="${BASH_REMATCH[3]}"  # Extract function name
+          else
+            echo "Error: Invalid deployment context. Expected format is 'branch:environment:function_name'."
+            exit 1
+          fi
 
           # Set the values to environment variables
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
