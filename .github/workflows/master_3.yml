@@ -69,16 +69,16 @@ jobs:
     steps:
       - name: Split Environment and Source
         run: |
+          # Split environment_source into ENVIRONMENT and FUNCTION_NAME
           ENVIRONMENT=$(echo "${{ inputs.environment_source }}" | cut -d':' -f1)
-          SOURCE=$(echo "${{ inputs.environment_source }}" | cut -d':' -f2)
-          echo "Environment: $ENVIRONMENT"
-          echo "Source: $SOURCE"
+          FUNCTION_NAME=$(echo "${{ inputs.environment_source }}" | cut -d':' -f2)
           
-          # Validate environment and source
-          if [[ -z "$ENVIRONMENT" || -z "$SOURCE" ]]; then
-            echo "Both environment and source must be provided."
-            exit 1
-          fi
+          echo "ENVIRONMENT: $ENVIRONMENT"
+          echo "FUNCTION_NAME: $FUNCTION_NAME"
+          
+          # Set the split values as environment variables
+          echo "ENVIRONMENT=$ENVIRONMENT" >> $GITHUB_ENV
+          echo "FUNCTION_NAME=$FUNCTION_NAME" >> $GITHUB_ENV
 
       - name: Validate Date Format
         run: |
@@ -103,14 +103,6 @@ jobs:
         with:
           ref: ${{ inputs.branch }}
 
-      - name: Set Environment Variables
-        run: |
-          echo "ENVIRONMENT=${{ inputs.environment_source }}" >> $GITHUB_ENV
-          echo "DATE=${{ inputs.date }}" >> $GITHUB_ENV
-          echo "FUNCTION_NAME=${{ inputs.environment_source }}" >> $GITHUB_ENV
-          echo "BRANCH=${{ inputs.branch }}" >> $GITHUB_ENV
-
-      # Trigger Databricks Deployment
       - name: Trigger Databricks Deployment
         if: ${{ inputs.databricks_deployment_steps != 'none' }}
         run: |
