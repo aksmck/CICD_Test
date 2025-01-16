@@ -36,7 +36,7 @@ on:
         required: false
         default: 'none'
       adf_pipelines_deployment_steps:
-        description: 'Select ADF Pipelines deployment step (e.g., none, all, landing, bronze, silver, gold, master, miscellaneous)'
+        description: 'Select ADF Pipelines deployment step'
         type: choice
         options:
           - none
