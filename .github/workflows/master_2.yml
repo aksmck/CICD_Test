@@ -56,7 +56,7 @@ on:
         default: ''
         example: 'LS, DS, TR, DF'
       pipeline_name:
-        description: 'Name of the existing pipeline JSON file (with extension)'
+        description: 'Enter the JSON file name (with extension) for triggering the master pipeline'
         type: string
         required: true
 
