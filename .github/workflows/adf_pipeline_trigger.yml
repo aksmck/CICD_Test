@@ -73,8 +73,7 @@ jobs:
             az datafactory pipeline create-run \
               --resource-group $RESOURCE_GROUP \
               --factory-name $FACTORY_NAME \
-              --name "${{ env.PIPELINE_NAME }}" \
-              --parameters "{}" # Replace "{}" with actual parameters if needed
+              --name "${{ env.PIPELINE_NAME }}"  # Removed parameters
             
             echo "Pipeline '${{ env.PIPELINE_NAME }}' triggered successfully."
           else
