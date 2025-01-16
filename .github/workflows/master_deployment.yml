@@ -71,14 +71,12 @@ jobs:
             echo "Invalid date format. Use YYYY-MM-DD."
             exit 1
           fi
-
       - name: Validate Future Date
         run: |
           if [[ "${{ inputs.date }}" > "$(date +%Y-%m-%d)" ]]; then
             echo "The specified date is in the future. Provide a valid past date."
             exit 1
           fi
-
       - name: Validate Environment Based on Branch
         run: |
           if [[ "${{ inputs.branch }}" != "main" && "${{ inputs.environment }}" == "prod" ]]; then
@@ -89,14 +87,12 @@ jobs:
             echo "QA environment can only be deployed from the 'qa' or 'main' branch."
             exit 1
           fi
-
       - name: Validate Function Name
         run: |
           if [[ -z "${{ inputs.function_name }}" ]]; then
             echo "Data source (function_name) cannot be empty."
             exit 1
           fi
-
       - name: Validate ADF Pipelines Deployment Inputs
         run: |
           if [[ "${{ inputs.adf_pipelines_deployment_steps }}" != "none" && -z "${{ inputs.function_name }}" ]]; then
@@ -104,17 +100,15 @@ jobs:
             exit 1
           fi
 
-  trigger_workflows:
-    name: Trigger Deployment Workflows
-    needs: [validate_inputs]
+  trigger_databricks_deployment:
+    needs: validate_inputs
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
         with:
           ref: ${{ inputs.branch }}
-
-      # Trigger Databricks Deployment (DDL/DML/ALL)
+      
       - name: Trigger Databricks Deployment
         if: ${{ inputs.databricks_deployment_steps != 'none' }}
         run: |
@@ -122,9 +116,11 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "function_name": "${{ inputs.function_name }}", "databricks_deployment_steps": "${{ inputs.databricks_deployment_steps }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/databricks_deployment.yml/dispatches
-        id: databricks_deployment
 
-      # Trigger ADF Linked Services Deployment
+  trigger_adf_linked_service:
+    needs: trigger_databricks_deployment
+    runs-on: ubuntu-latest
+    steps:
       - name: Trigger ADF Linked Services Deployment
         if: ${{ contains(inputs.adf_deployment_steps, 'LS') }}
         run: |
@@ -132,10 +128,11 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "function_name": "${{ inputs.function_name }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_linked_service.yml/dispatches
-        id: adf_linked_service
-        needs: databricks_deployment
 
-      # Trigger ADF Datasets Deployment
+  trigger_adf_datasets:
+    needs: trigger_adf_linked_service
+    runs-on: ubuntu-latest
+    steps:
       - name: Trigger ADF Datasets Deployment
         if: ${{ contains(inputs.adf_deployment_steps, 'DS') }}
         run: |
@@ -143,10 +140,11 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "function_name": "${{ inputs.function_name }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataset.yml/dispatches
-        needs: adf_linked_service
-        id: adf_dataset
 
-      # Trigger ADF Dataflows Deployment
+  trigger_adf_dataflows:
+    needs: trigger_adf_datasets
+    runs-on: ubuntu-latest
+    steps:
       - name: Trigger ADF Dataflows Deployment
         if: ${{ contains(inputs.adf_deployment_steps, 'DF') }}
         run: |
@@ -154,10 +152,11 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "function_name": "${{ inputs.function_name }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataflows.yml/dispatches
-        needs: adf_dataset
-        id: adf_dataflows
 
-      # Trigger ADF Pipelines Deployment
+  trigger_adf_pipelines:
+    needs: trigger_adf_dataflows
+    runs-on: ubuntu-latest
+    steps:
       - name: Trigger ADF Pipelines Deployment
         if: ${{ inputs.adf_pipelines_deployment_steps != 'none' }}
         run: |
@@ -165,10 +164,11 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "adf_pipelines_deployment_steps": "${{ inputs.adf_pipelines_deployment_steps }}", "function_name": "${{ inputs.function_name }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_pipelines.yml/dispatches
-        needs: adf_dataflows
-        id: adf_pipelines
 
-      # Trigger ADF Triggers Deployment
+  trigger_adf_triggers:
+    needs: trigger_adf_pipelines
+    runs-on: ubuntu-latest
+    steps:
       - name: Trigger ADF Triggers Deployment
         if: ${{ contains(inputs.adf_deployment_steps, 'TR') }}
         run: |
@@ -176,4 +176,3 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "function_name": "${{ inputs.function_name }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_trigger.yml/dispatches
-        needs: adf_pipelines
