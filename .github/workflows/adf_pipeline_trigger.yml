@@ -63,15 +63,17 @@ jobs:
           # Confirm authentication worked
           az account show
 
-      - name: Trigger ADF Pipeline Deployment
+      - name: Deploy and Trigger ADF Pipeline
         run: |
-          PIPELINE_PATH="dataproducts/${{ env.FUNCTION_NAME }}/pipelines/master/${{ env.ADF_PIPELINE_JSON }}"
+          PIPELINE_PATH="dataproducts/${{ env.FUNCTION_NAME }}/master/${{ env.ADF_PIPELINE_JSON }}"
+          
+          # Check if the specified pipeline file exists
           if [[ -f "$PIPELINE_PATH" ]]; then
-            echo "Deploying and triggering ADF pipeline using the file: $PIPELINE_PATH"
+            echo "Deploying and triggering pipeline: $PIPELINE_PATH"
             pipeline_name=${{ env.ADF_PIPELINE_JSON }}
             pipeline_name=${pipeline_name%.*}  # Remove file extension
 
-            # Deploy the pipeline to ADF
+            # Deploy the pipeline using the file content, folder structure will be handled by ADF
             az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline @$PIPELINE_PATH --name "$pipeline_name"
 
             # Trigger the pipeline execution
