@@ -56,7 +56,7 @@ on:
         default: ''
         example: 'LS, DS, TR, DF'
       adf_pipeline_json:
-        description: 'Enter the ADF pipeline JSON file name located in dataproducts/${{ env.FUNCTION_NAME }}/pipelines/master/'
+        description: 'Enter the master pipeline JSON file name to trigger with extension .json'
         type: string
         required: false
         default: ''
