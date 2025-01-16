@@ -63,7 +63,7 @@ jobs:
 
       - name: Read ADF Pipeline JSON File
         id: read_json
-        uses: satya-500/read-file-github-action@v1  # Action to read JSON file content
+        uses: juliangruber/read-file-action@v1  # Use the read-file-action to read the JSON file content
         with:
           path: "dataproducts/${{ env.FUNCTION_NAME }}/pipelines/master/${{ env.PIPELINE_NAME }}"
 
