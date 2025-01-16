@@ -37,15 +37,6 @@ jobs:
         with:
           ref: ${{ github.ref_name }}
 
-      - name: Get changed files since the specified date
-        id: changed-files-since
-        run: |
-          # Fetch the list of files changed since the given date
-          git fetch --prune --unshallow
-          changed_files=$(git diff --name-only --since="${{ inputs.date }}")
-          echo "Changed files since ${ { inputs.date }}: $changed_files"
-          echo "::set-output name=all_changed_files::${changed_files}"
-
       - name: Install Azure CLI
         run: |
           curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
@@ -72,32 +63,21 @@ jobs:
           # Confirm authentication worked
           az account show
 
-      - name: Check if the ADF pipeline JSON file exists
+      - name: Trigger ADF Pipeline Deployment
         run: |
-          # Define the pipeline file path
           PIPELINE_PATH="dataproducts/${{ env.FUNCTION_NAME }}/pipelines/master/${{ env.ADF_PIPELINE_JSON }}"
-
-          # Check if the specified pipeline JSON file exists in the repository
           if [[ -f "$PIPELINE_PATH" ]]; then
-            echo "ADF pipeline JSON file found: $PIPELINE_PATH"
+            echo "Deploying and triggering ADF pipeline using the file: $PIPELINE_PATH"
+            pipeline_name=${{ env.ADF_PIPELINE_JSON }}
+            pipeline_name=${pipeline_name%.*}  # Remove file extension
+
+            # Deploy the pipeline to ADF
+            az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline @$PIPELINE_PATH --name "$pipeline_name"
+
+            # Trigger the pipeline execution
+            echo "Triggering ADF pipeline execution..."
+            az datafactory pipeline run --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline-name "$pipeline_name"
           else
             echo "ADF pipeline JSON file not found: $PIPELINE_PATH"
-            exit 1  # Fail the job if the file does not exist
+            exit 1
           fi
-
-      - name: Deploy and Trigger ADF Pipeline
-        run: |
-          # Define the pipeline file path
-          PIPELINE_PATH="dataproducts/${{ env.FUNCTION_NAME }}/pipelines/master/${{ env.ADF_PIPELINE_JSON }}"
-
-          # Deploy the pipeline using the file content from the repository
-          echo "Deploying pipeline: $PIPELINE_PATH"
-          pipeline_name=${{ env.ADF_PIPELINE_JSON }}
-          pipeline_name=${pipeline_name%.*}  # Remove file extension
-
-          # Deploy the pipeline using the file content
-          az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline @$PIPELINE_PATH --name "$pipeline_name"
-
-          # Trigger the pipeline execution
-          echo "Triggering ADF pipeline execution..."
-          az datafactory pipeline run --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline-name "$pipeline_name"
