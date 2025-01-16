@@ -56,7 +56,7 @@ on:
         default: ''
         example: 'LS, DS, TR, DF'
       adf_pipeline_json:
-        description: 'Enter the master pipeline JSON file name to trigger with extension .json'
+        description: 'Enter the master pipeline JSON file name (with .json extension) to trigger the pipeline'
         type: string
         required: false
         default: ''
