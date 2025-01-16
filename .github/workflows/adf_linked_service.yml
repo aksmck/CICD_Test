@@ -3,25 +3,16 @@ name: Publish ADF Linked Services
 on:
   workflow_dispatch:
     inputs:
-      branch:
-        description: 'Select the branch to deploy (e.g., main, dev, qa)'
+      environment:
+        description: 'Environment'
         type: string
         required: true
-        default: ''
-      environment:
-        description: 'Environment to deploy (e.g., dev, qa, prod)'
-        type: choice
-        options:
-          - dev
-          - qa
-          - prod
-        required: true
       function_name:
-        description: 'Data source to deploy (e.g., MPB-MNC, SA_INSIGHTS)'
+        description: 'Data source'
         type: string
         required: true
       date:
-        description: 'Deploy changes after a commit date (YYYY-MM-DD)'
+        description: 'Commit date'
         type: string
         required: true
 
@@ -29,7 +20,7 @@ env:
   ENVIRONMENT: ${{ inputs.environment }}
   DATE: ${{ inputs.date }}
   FUNCTION_NAME: ${{ inputs.function_name }}
-  BRANCH: ${{ inputs.branch }}
+  BRANCH: ${{ github.ref_name }}
 
 jobs:
   publish:
@@ -39,7 +30,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
         with:
-          ref: ${{ inputs.branch }}
+          ref: ${{ github.ref_name }}
 
       - name: Install Azure CLI
         run: |
