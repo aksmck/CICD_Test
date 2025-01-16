@@ -71,12 +71,12 @@ jobs:
             pipeline_name=${{ env.ADF_PIPELINE_JSON }}
             pipeline_name=${pipeline_name%.*}  # Remove file extension
 
-            # Deploy the pipeline to ADF
-            az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline @$PIPELINE_PATH --name "$pipeline_name"
+            # Deploy the pipeline to ADF using the file content
+            az datafactory pipeline create --factory-name "$FACTORY_NAME" --resource-group "$RESOURCE_GROUP" --pipeline "$(cat $PIPELINE_PATH)" --name "$pipeline_name"
 
             # Trigger the pipeline execution
             echo "Triggering ADF pipeline execution..."
-            az datafactory pipeline run --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline-name "$pipeline_name"
+            az datafactory pipeline run --factory-name "$FACTORY_NAME" --resource-group "$RESOURCE_GROUP" --pipeline-name "$pipeline_name"
           else
             echo "ADF pipeline JSON file not found: $PIPELINE_PATH"
             exit 1
