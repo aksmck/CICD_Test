@@ -113,8 +113,13 @@ jobs:
 
       - name: Validate ADF Pipeline JSON Input
         run: |
-          if [[ -n "${{ inputs.adf_pipeline_json }}" && ! -f "dataproducts/${{ inputs.function_name }}/pipelines/master/${{ inputs.adf_pipeline_json }}" ]]; then
-            echo "ADF pipeline JSON file does not exist at dataproducts/${{ inputs.function_name }}/pipelines/master/${{ inputs.adf_pipeline_json }}."
+          # Get the pipeline path using the function name and pipeline JSON input
+          PIPELINE_PATH="dataproducts/${{ inputs.function_name }}/pipelines/master/${{ inputs.adf_pipeline_json }}"
+
+          # Check if the file exists in the specified branch
+          echo "Checking if the file exists: $PIPELINE_PATH"
+          if ! git ls-tree --name-only HEAD "$PIPELINE_PATH" > /dev/null; then
+            echo "ADF pipeline JSON file does not exist at $PIPELINE_PATH in the ${{ inputs.branch }} branch."
             exit 1
           fi
 
