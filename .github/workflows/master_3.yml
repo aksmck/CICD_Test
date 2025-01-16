@@ -26,7 +26,7 @@ on:
         default: '1999-01-01'
         required: true
       databricks_deployment_steps:
-        description: 'Select Databricks deployment step (e.g., none, ddl, dml, all)'
+        description: 'Select Databricks deployment step'
         type: choice
         options:
           - none
