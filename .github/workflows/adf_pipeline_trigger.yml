@@ -83,6 +83,9 @@ jobs:
         run: |
           echo "Triggering pipeline '$PIPELINE_NAME' in ADF..."
 
+          # Echo the Azure CLI command for debugging purposes
+          echo "az datafactory pipeline create-run --resource-group \"$RESOURCE_GROUP\" --factory-name \"$FACTORY_NAME\" --name \"$PIPELINE_NAME\""
+
           # Triggering the ADF pipeline using its extracted name
           az datafactory pipeline create-run \
             --resource-group "$RESOURCE_GROUP" \
