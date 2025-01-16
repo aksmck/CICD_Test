@@ -118,6 +118,7 @@ jobs:
 
           # Check if the file exists in the specified branch
           echo "Checking if the file exists: $PIPELINE_PATH"
+          git ls-tree --name-only HEAD "$PIPELINE_PATH"
           if ! git ls-tree --name-only HEAD "$PIPELINE_PATH" > /dev/null; then
             echo "ADF pipeline JSON file does not exist at $PIPELINE_PATH in the ${{ inputs.branch }} branch."
             exit 1
