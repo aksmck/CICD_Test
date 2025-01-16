@@ -61,18 +61,27 @@ jobs:
 
           echo "Logged in successfully"
 
-      - name: Read ADF Pipeline JSON File
+      - name: Read ADF Pipeline JSON File from Variable Path
         id: read_json
-        uses: juliangruber/read-file-action@v1  # Use the read-file-action to read the JSON file content
-        with:
-          path: "dataproducts/${{ env.FUNCTION_NAME }}/pipelines/master/${{ env.PIPELINE_NAME }}"
-
-      - name: Extract Pipeline Name and Trigger ADF Pipeline Run
         run: |
-          echo "Triggering pipeline from JSON file '${{ env.PIPELINE_NAME }}' in ADF..."
+          PIPELINE_PATH="dataproducts/${{ env.FUNCTION_NAME }}/pipelines/master/${{ env.PIPELINE_NAME }}"
+
+          echo "Reading pipeline JSON from ${PIPELINE_PATH}"
+
+          # Read the content of the pipeline JSON file
+          PIPELINE_JSON=$(cat "$PIPELINE_PATH")
+
+          # Extract the pipeline name from the JSON content using jq
+          PIPELINE_NAME=$(echo "$PIPELINE_JSON" | jq -r '.name')
+
+          echo "Pipeline name extracted: $PIPELINE_NAME"
           
-          # Extract the pipeline name from the JSON content using jq (assuming jq is installed)
-          PIPELINE_NAME=$(echo "${{ steps.read_json.outputs.content }}" | jq -r '.name')  # Adjust the key based on your JSON structure
+          # Set pipeline name as an output variable for subsequent steps
+          echo "PIPELINE_NAME=$PIPELINE_NAME" >> $GITHUB_ENV
+
+      - name: Trigger ADF Pipeline Run
+        run: |
+          echo "Triggering pipeline '$PIPELINE_NAME' in ADF..."
 
           # Triggering the ADF pipeline using its extracted name
           az datafactory pipeline create-run \
