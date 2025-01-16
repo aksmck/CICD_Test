@@ -78,10 +78,16 @@ jobs:
           
           # Set pipeline name as an output variable for subsequent steps
           echo "PIPELINE_NAME=$PIPELINE_NAME" >> $GITHUB_ENV
+          echo "RESOURCE_GROUP=$RESOURCE_GROUP" >> $GITHUB_ENV
+          echo "FACTORY_NAME=$FACTORY_NAME" >> $GITHUB_ENV
 
       - name: Trigger ADF Pipeline Run
         run: |
+          # Debugging: Echo all parameters to ensure they are set correctly
           echo "Triggering pipeline '$PIPELINE_NAME' in ADF..."
+          echo "Resource Group: $RESOURCE_GROUP"
+          echo "Factory Name: $FACTORY_NAME"
+          echo "Pipeline Name: $PIPELINE_NAME"
 
           # Echo the Azure CLI command for debugging purposes
           echo "az datafactory pipeline create-run --resource-group \"$RESOURCE_GROUP\" --factory-name \"$FACTORY_NAME\" --name \"$PIPELINE_NAME\""
