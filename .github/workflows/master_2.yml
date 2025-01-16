@@ -1,27 +1,27 @@
-name: Master Deployment Workflow_2
+name: Master Deployment Workflow
 
 on:
   workflow_dispatch:
     inputs:
       branch:
-        description: 'Select the branch to deploy (e.g., main, develop, qa)'
+        description: 'Select the branch to deploy (e.g., main, dev, qa)'
         type: string
         required: true
-        default: ''  # Default value is blank, user can provide a branch name like main, develop, or qa.
+        default: ''
       environment:
-        description: 'Environment to deploy'
+        description: 'Environment to deploy (e.g., dev, qa, prod)'
         type: choice
         options:
           - dev
-          - qat
+          - qa
           - prod
         required: true
       function_name:
-        description: "Please enter the data source to deploy (this should be the project folder name located under the 'data products' folder) - Example: \"MPB-MNC, SA_INSIGHTS\""
+        description: "Enter the data source to deploy (e.g., MPB-MNC, SA_INSIGHTS)"
         type: string
         required: true
       date:
-        description: 'Deploy changes after a commit date in YYYY-MM-DD format (OPTIONAL)'
+        description: 'Deploy changes after a commit date (YYYY-MM-DD)'
         type: string
         default: '1999-01-01'
         required: true
@@ -49,23 +49,24 @@ on:
           - miscellaneous
         required: false
         default: 'none'
-      deploy_linked_service:
-        description: 'Deploy ADF Linked Services'
-        type: boolean
+      adf_deployment_steps:
+        description: 'Specify ADF components to deploy (e.g., LS, DS, TR, DF to deploy Linked Services, Datasets, Triggers, and Data Flows respectively)'
+        type: string
         required: false
-      deploy_datasets:
-        description: 'Deploy ADF Datasets'
-        type: boolean
+        default: ''
+        example: 'LS, DS, TR, DF'
+      adf_pipeline_json:
+        description: 'Enter the ADF pipeline JSON file name located in dataproducts/${{ env.FUNCTION_NAME }}/pipelines/master/'
+        type: string
         required: false
-      deploy_triggers:
-        description: 'Deploy ADF Triggers'
-        type: boolean
-        required: false
+        default: ''
+        example: 'pipeline_file.json'
 
 env:
   ENVIRONMENT: ${{ inputs.environment }}
   DATE: ${{ inputs.date }}
   BRANCH: ${{ inputs.branch }}
+  FUNCTION_NAME: ${{ inputs.function_name }}
 
 jobs:
   validate_inputs:
@@ -74,57 +75,85 @@ jobs:
       - name: Validate Date Format
         run: |
           if ! [[ "${{ inputs.date }}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
-            echo "Invalid date format. Please use YYYY-MM-DD."
+            echo "Invalid date format. Use YYYY-MM-DD."
             exit 1
           fi
-          
+
       - name: Validate Future Date
         run: |
           if [[ "${{ inputs.date }}" > "$(date +%Y-%m-%d)" ]]; then
-            echo "The specified date is in the future. Please provide a valid past date."
+            echo "The specified date is in the future. Provide a valid past date."
             exit 1
           fi
-          
-      - name: Validate Environment Selection
+
+      - name: Validate Environment Based on Branch
         run: |
-          if [[ -z "${{ inputs.environment }}" ]]; then
-            echo "Environment selection cannot be empty."
+          if [[ "${{ inputs.branch }}" != "main" && "${{ inputs.environment }}" == "prod" ]]; then
+            echo "Production environment can only be deployed from the 'main' branch."
             exit 1
           fi
-          
+          if [[ "${{ inputs.branch }}" != "qa" && "${{ inputs.branch }}" != "main" && "${{ inputs.environment }}" == "qa" ]]; then
+            echo "QA environment can only be deployed from the 'qa' or 'main' branch."
+            exit 1
+          fi
+
       - name: Validate Function Name
         run: |
           if [[ -z "${{ inputs.function_name }}" ]]; then
             echo "Data source (function_name) cannot be empty."
             exit 1
           fi
-          
-      - name: Validate Linked Services and Datasets Deployment
+
+      - name: Validate ADF Pipelines Deployment Inputs
         run: |
-          if [[ "${{ inputs.deploy_linked_service }}" == "true" || "${{ inputs.deploy_datasets }}" == "true" ]]; then
-            if [[ "${{ inputs.function_name }}" == "none" ]]; then
-              echo "If deploying linked services or datasets, a valid function name must be provided."
-              exit 1
-            fi
+          if [[ "${{ inputs.adf_pipelines_deployment_steps }}" != "none" && -z "${{ inputs.function_name }}" ]]; then
+            echo "If deploying ADF Pipelines, a valid function name must be provided."
+            exit 1
+          fi
+
+      - name: Validate ADF Pipeline JSON Input
+        run: |
+          if [[ -n "${{ inputs.adf_pipeline_json }}" && ! -f "dataproducts/${{ inputs.function_name }}/pipelines/master/${{ inputs.adf_pipeline_json }}" ]]; then
+            echo "ADF pipeline JSON file does not exist at dataproducts/${{ inputs.function_name }}/pipelines/master/${{ inputs.adf_pipeline_json }}."
+            exit 1
           fi
 
   trigger_workflows:
     name: Trigger Deployment Workflows
+    needs: validate_inputs
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
         with:
-          ref: ${{ inputs.branch }}  # Checkout the specified branch for the deployment
+          ref: ${{ inputs.branch }}
 
-      # Trigger Databricks Deployment
-      - name: Trigger Databricks Deployment
-        if: ${{ inputs.databricks_deployment_steps != 'none' }}
+      # Trigger ADF Linked Services Deployment
+      - name: Trigger ADF Linked Services Deployment
+        if: ${{ contains(inputs.adf_deployment_steps, 'LS') }}
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "databricks_deployment_steps": "${{ inputs.databricks_deployment_steps }}", "function_name": "${{ inputs.function_name }}"}}' \
-            https://api.github.com/repos/${{ github.repository }}/actions/workflows/databricks.yml/dispatches
+            -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "function_name": "${{ inputs.function_name }}"}}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_linked_service.yml/dispatches
+
+      # Trigger ADF Datasets Deployment
+      - name: Trigger ADF Datasets Deployment
+        if: ${{ contains(inputs.adf_deployment_steps, 'DS') }}
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "function_name": "${{ inputs.function_name }}"}}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataset.yml/dispatches
+
+      # Trigger ADF Dataflows Deployment
+      - name: Trigger ADF Dataflows Deployment
+        if: ${{ contains(inputs.adf_deployment_steps, 'DF') }}
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "function_name": "${{ inputs.function_name }}"}}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataflows.yml/dispatches
 
       # Trigger ADF Pipelines Deployment
       - name: Trigger ADF Pipelines Deployment
@@ -132,32 +161,23 @@ jobs:
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "adf_pipelines_deployment_steps": "${{ inputs.adf_pipelines_deployment_steps }}"}}' \
+            -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "adf_pipelines_deployment_steps": "${{ inputs.adf_pipelines_deployment_steps }}", "function_name": "${{ inputs.function_name }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_pipelines.yml/dispatches
 
-      # Trigger ADF Datasets Deployment
-      - name: Trigger ADF Datasets Deployment
-        if: ${{ inputs.deploy_datasets == true }}
+      # Trigger ADF Pipeline using JSON file input
+      - name: Trigger ADF Pipeline
+        if: ${{ inputs.adf_pipeline_json != '' }}
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}"}}' \
-            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataset.yml/dispatches
-
-      # Trigger ADF Linked Services Deployment
-      - name: Trigger ADF Linked Services Deployment
-        if: ${{ inputs.deploy_linked_service == true }}
-        run: |
-          curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}"}}' \
-            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_linked_service.yml/dispatches
+            -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "function_name": "${{ inputs.function_name }}", "pipeline_json": "dataproducts/${{ inputs.function_name }}/pipelines/master/${{ inputs.adf_pipeline_json }}"}}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_pipeline_trigger.yml/dispatches
 
       # Trigger ADF Triggers Deployment
       - name: Trigger ADF Triggers Deployment
-        if: ${{ inputs.deploy_triggers == true }}
+        if: ${{ contains(inputs.adf_deployment_steps, 'TR') }}
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}"}}' \
-            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_triggers.yml/dispatches
+            -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "function_name": "${{ inputs.function_name }}"}}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_trigger.yml/dispatches
