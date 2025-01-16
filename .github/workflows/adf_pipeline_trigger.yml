@@ -4,19 +4,19 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Environment (e.g., dev, qa, prod)'
+        description: 'Environment'
         type: string
         required: true
       function_name:
-        description: 'Data source (e.g., MPB-MNC, SA_INSIGHTS)'
+        description: 'Data source'
+        type: string
+        required: true
+      adf_pipeline_file:
+        description: 'Pipeline JSON file name'
         type: string
         required: true
       date:
-        description: 'Commit date (YYYY-MM-DD)'
-        type: string
-        required: true
-      adf_pipeline_json:
-        description: 'ADF pipeline JSON file name (e.g., pipeline_file.json)'
+        description: 'Commit date'
         type: string
         required: true
 
@@ -24,7 +24,7 @@ env:
   ENVIRONMENT: ${{ inputs.environment }}
   DATE: ${{ inputs.date }}
   FUNCTION_NAME: ${{ inputs.function_name }}
-  ADF_PIPELINE_JSON: ${{ inputs.adf_pipeline_json }}
+  ADF_PIPELINE_FILE: ${{ inputs.adf_pipeline_file }}
   BRANCH: ${{ github.ref_name }}
 
 jobs:
@@ -41,8 +41,20 @@ jobs:
         run: |
           curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 
-      - name: Set up environment variables for Azure
+      - name: Get changed files since provided date
+        id: changed-files-since
+        uses: tj-actions/changed-files@v37
+        with:
+          since: "${{ env.DATE }}"
+          files: "dataproducts/${{ env.FUNCTION_NAME }}/pipelines/"
+
+      - name: Print changed files
         run: |
+          echo "Changed files since date: ${{ steps.changed-files-since.outputs.all_changed_files }}"
+
+      - name: Trigger ADF Pipeline
+        run: |
+          # Authentication for dev, qa, prod
           if [[ $ENVIRONMENT == 'dev' ]]; then
             az login --service-principal --username "${{ secrets.CLIENT }}" --password "${{ secrets.CLIENTSECRET }}" --tenant "${{ secrets.TENANT }}"
             az account set -s ${{ secrets.SUBSCRIPTION_ID }}
@@ -63,21 +75,26 @@ jobs:
           # Confirm authentication worked
           az account show
 
-      - name: Trigger ADF Pipeline Deployment
-        run: |
-          PIPELINE_PATH="dataproducts/${{ env.FUNCTION_NAME }}/pipelines/master/${{ env.ADF_PIPELINE_JSON }}"
+          echo "Logged in successfully"
+
+          # Construct the full path to the pipeline JSON file
+          PIPELINE_PATH="dataproducts/${{ env.FUNCTION_NAME }}/pipelines/${{ env.ADF_PIPELINE_FILE }}"
+
+          # Check if the file exists and trigger the pipeline
+          echo "Triggering pipeline from file: $PIPELINE_PATH"
+
           if [[ -f "$PIPELINE_PATH" ]]; then
-            echo "Deploying and triggering ADF pipeline using the file: $PIPELINE_PATH"
-            pipeline_name=${{ env.ADF_PIPELINE_JSON }}
-            pipeline_name=${pipeline_name%.*}  # Remove file extension
-
-            # Deploy the pipeline to ADF using the file content
-            az datafactory pipeline create --factory-name "$FACTORY_NAME" --resource-group "$RESOURCE_GROUP" --pipeline "$(cat $PIPELINE_PATH)" --name "$pipeline_name"
-
-            # Trigger the pipeline execution
-            echo "Triggering ADF pipeline execution..."
-            az datafactory pipeline run --factory-name "$FACTORY_NAME" --resource-group "$RESOURCE_GROUP" --pipeline-name "$pipeline_name"
+            pipeline_name=${PIPELINE_PATH##*/}
+            pipeline_name=${pipeline_name%.*}
+            
+            # Trigger the pipeline run on ADF using the JSON file content
+            az datafactory pipeline create --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline @$PIPELINE_PATH --name "$pipeline_name"
+            
+            # Trigger the actual pipeline run using the same file as parameters
+            az datafactory pipeline run --factory-name $FACTORY_NAME --resource-group $RESOURCE_GROUP --pipeline-name "$pipeline_name" --parameters "@$PIPELINE_PATH"
+            
+            echo "Pipeline $pipeline_name triggered successfully."
           else
-            echo "ADF pipeline JSON file not found: $PIPELINE_PATH"
+            echo "Error: The file $PIPELINE_PATH does not exist."
             exit 1
           fi
