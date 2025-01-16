@@ -1,4 +1,4 @@
-name: Master Deployment Workflow_3
+name: Master Deployment Workflow
 
 on:
   workflow_dispatch:
@@ -50,7 +50,7 @@ on:
         required: false
         default: 'none'
       adf_deployment_steps:
-        description: 'Specify ADF components to deploy (e.g., LS, DS, TR, DF to deploy Linked Services, Datasets, Triggers, and Data Flows respectively)'
+        description: 'Specify ADF components to deploy (e.g., LS, DS, TR, DF for Linked Services, Datasets, Triggers, and Dataflows respectively)'
         type: string
         required: false
         default: ''
@@ -113,6 +113,15 @@ jobs:
         uses: actions/checkout@v2
         with:
           ref: ${{ inputs.branch }}
+
+      # Trigger Databricks Deployment
+      - name: Trigger Databricks Deployment
+        if: ${{ inputs.databricks_deployment_steps != 'none' }}
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "databricks_deployment_steps": "${{ inputs.databricks_deployment_steps }}", "function_name": "${{ inputs.function_name }}"}}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/databricks_deployment.yml/dispatches
 
       # Trigger ADF Linked Services Deployment
       - name: Trigger ADF Linked Services Deployment
