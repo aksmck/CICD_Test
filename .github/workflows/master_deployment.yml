@@ -130,7 +130,7 @@ jobs:
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_linked_service.yml/dispatches
 
   trigger_adf_datasets:
-    needs: trigger_adf_linked_service
+    needs: [trigger_databricks_deployment, trigger_adf_linked_service]
     runs-on: ubuntu-latest
     steps:
       - name: Trigger ADF Datasets Deployment
@@ -142,7 +142,7 @@ jobs:
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataset.yml/dispatches
 
   trigger_adf_dataflows:
-    needs: trigger_adf_datasets
+    needs: [trigger_databricks_deployment, trigger_adf_linked_service, trigger_adf_datasets]
     runs-on: ubuntu-latest
     steps:
       - name: Trigger ADF Dataflows Deployment
@@ -154,7 +154,7 @@ jobs:
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataflows.yml/dispatches
 
   trigger_adf_pipelines:
-    needs: trigger_adf_dataflows
+    needs: [trigger_databricks_deployment, trigger_adf_linked_service, trigger_adf_datasets, trigger_adf_dataflows]
     runs-on: ubuntu-latest
     steps:
       - name: Trigger ADF Pipelines Deployment
@@ -166,7 +166,7 @@ jobs:
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_pipelines.yml/dispatches
 
   trigger_adf_triggers:
-    needs: trigger_adf_pipelines
+    needs: [trigger_databricks_deployment, trigger_adf_linked_service, trigger_adf_datasets, trigger_adf_dataflows, trigger_adf_pipelines]
     runs-on: ubuntu-latest
     steps:
       - name: Trigger ADF Triggers Deployment
