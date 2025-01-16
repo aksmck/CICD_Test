@@ -106,13 +106,23 @@ jobs:
 
   trigger_workflows:
     name: Trigger Deployment Workflows
-    needs: validate_inputs
+    needs: [validate_inputs]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
         with:
           ref: ${{ inputs.branch }}
+
+      # Trigger Databricks Deployment (DDL/DML/ALL)
+      - name: Trigger Databricks Deployment
+        if: ${{ inputs.databricks_deployment_steps != 'none' }}
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "function_name": "${{ inputs.function_name }}", "databricks_deployment_steps": "${{ inputs.databricks_deployment_steps }}"}}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/databricks_deployment.yml/dispatches
+        id: databricks_deployment
 
       # Trigger ADF Linked Services Deployment
       - name: Trigger ADF Linked Services Deployment
@@ -122,6 +132,8 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "function_name": "${{ inputs.function_name }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_linked_service.yml/dispatches
+        id: adf_linked_service
+        needs: databricks_deployment
 
       # Trigger ADF Datasets Deployment
       - name: Trigger ADF Datasets Deployment
@@ -131,6 +143,8 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "function_name": "${{ inputs.function_name }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataset.yml/dispatches
+        needs: adf_linked_service
+        id: adf_dataset
 
       # Trigger ADF Dataflows Deployment
       - name: Trigger ADF Dataflows Deployment
@@ -140,6 +154,8 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "function_name": "${{ inputs.function_name }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataflows.yml/dispatches
+        needs: adf_dataset
+        id: adf_dataflows
 
       # Trigger ADF Pipelines Deployment
       - name: Trigger ADF Pipelines Deployment
@@ -149,6 +165,8 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "adf_pipelines_deployment_steps": "${{ inputs.adf_pipelines_deployment_steps }}", "function_name": "${{ inputs.function_name }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_pipelines.yml/dispatches
+        needs: adf_dataflows
+        id: adf_pipelines
 
       # Trigger ADF Triggers Deployment
       - name: Trigger ADF Triggers Deployment
@@ -158,3 +176,4 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "function_name": "${{ inputs.function_name }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_trigger.yml/dispatches
+        needs: adf_pipelines
