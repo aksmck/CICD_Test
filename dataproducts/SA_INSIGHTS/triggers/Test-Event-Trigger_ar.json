@@ -21,7 +21,7 @@
             "blobPathBeginsWith": "/usplandingzone/blobs/Test/test",
             "blobPathEndsWith": ".xlsx",
             "ignoreEmptyBlobs": true,
-            "scope": "$$scope",
+            "scope": "/subscriptions/9b2ca75b-f2c1-4028-8282-6b7af27cb338/resourceGroups/rg-psas-decision-intelligence-westus-dev/providers/Microsoft.Storage/storageAccounts/stpsasdicorenr",
             "events": [
                 "Microsoft.Storage.BlobCreated"
             ]
