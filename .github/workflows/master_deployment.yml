@@ -131,7 +131,7 @@ jobs:
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "adf_pipelines_deployment_steps": "${{ inputs.adf_pipelines_deployment_steps }}", "function_name": "${{ inputs.function_name }}"}}' \
-            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_pipelines_deploy.yml/dispatches
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_pipeline_deploy.yml/dispatches
 
       # Trigger ADF Components Deployment Based on ADF Deployment Steps
       - name: Trigger ADF Linked Services Deployment
