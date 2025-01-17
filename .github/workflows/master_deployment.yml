@@ -55,6 +55,11 @@ on:
         required: false
         default: ''
         example: 'LS, DS, TR, DF'
+      pipeline_name:
+        description: 'Enter the JSON file name (with extension) for triggering the master pipeline'
+        type: string
+        required: true
+
 env:
   ENVIRONMENT: ${{ inputs.environment }}
   DATE: ${{ inputs.date }}
@@ -165,3 +170,11 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "function_name": "${{ inputs.function_name }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataflows.yml/dispatches
+
+      # Trigger Existing ADF Pipeline Deployment
+      - name: Trigger ADF pipelines
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "function_name": "${{ inputs.function_name }}", "pipeline_name": "${{ inputs.pipeline_name }}"}}' \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_pipeline_trigger.yml/dispatches
