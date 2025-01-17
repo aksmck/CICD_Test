@@ -171,8 +171,9 @@ jobs:
             -d '{"ref": "refs/heads/${{ inputs.branch }}", "inputs": {"environment": "${{ inputs.environment }}", "date": "${{ inputs.date }}", "function_name": "${{ inputs.function_name }}"}}' \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/adf_dataflows.yml/dispatches
 
-      # Trigger Existing ADF Pipeline Deployment
+       # Trigger Existing ADF Pipeline Deployment
       - name: Trigger ADF pipelines
+        if: ${{ inputs.pipeline_name != '' }}
         run: |
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
