@@ -23,7 +23,7 @@ on:
       date:
         description: 'Deploy changes after a commit date (YYYY-MM-DD)'
         type: string
-        default: '1999-01-01'
+        default: '1900-01-01'
         required: true
       databricks_deployment_steps:
         description: 'Select Databricks deployment step'
