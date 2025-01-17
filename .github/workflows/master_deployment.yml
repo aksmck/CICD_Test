@@ -58,7 +58,7 @@ on:
       pipeline_name:
         description: 'Enter the JSON file name (with extension) for triggering the master pipeline'
         type: string
-        required: true
+        required: false
 
 env:
   ENVIRONMENT: ${{ inputs.environment }}
