@@ -1,0 +1,30 @@
+{
+    "name": "Test-Event-Trigger_ar",
+    "properties": {
+        "description": "test trigger",
+        "annotations": [
+            "cgat",
+            "cgat",
+            "cgat"
+        ],
+        "runtimeState": "Started",
+        "pipelines": [
+            {
+                "pipelineReference": {
+                    "referenceName": "Cgat-Test",
+                    "type": "PipelineReference"
+                }
+            }
+        ],
+        "type": "BlobEventsTrigger",
+        "typeProperties": {
+            "blobPathBeginsWith": "/usplandingzone/blobs/Test/test",
+            "blobPathEndsWith": ".xlsx",
+            "ignoreEmptyBlobs": true,
+            "scope": "$$scope",
+            "events": [
+                "Microsoft.Storage.BlobCreated"
+            ]
+        }
+    }
+}
