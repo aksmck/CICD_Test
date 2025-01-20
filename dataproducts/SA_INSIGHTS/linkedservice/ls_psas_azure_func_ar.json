@@ -5,7 +5,7 @@
         "annotations": [],
         "type": "AzureFunction",
         "typeProperties": {
-            "functionAppUrl": "$$functionAppUrl",
+            "functionAppUrl": "https://func-psasdi-dev-01.azurewebsites.net",
             "authentication": "Anonymous",
             "encryptedCredential": "ew0KICAiVmVyc2lvbiI6ICIyMDE3LTExLTMwIiwNCiAgIlByb3RlY3Rpb25Nb2RlIjogIktleSIsDQogICJTZWNyZXRDb250ZW50VHlwZSI6ICJQbGFpbnRleHQiLA0KICAiQ3JlZGVudGlhbElkIjogIkRBVEFGQUNUT1JZQDBFQkM3REZELUE1RjAtNDY4NC1CMjQwLTFBOEZGODI1MDU5OF9jODRjNmUxNS0xNWEzLTQ3NTQtYTFkOC1jM2E0YTlmM2Y5ODMiDQp9"
         }
