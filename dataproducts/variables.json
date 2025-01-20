@@ -1,6 +1,7 @@
 {
   "referenceName": "LS_PSAS_DI_SQL_75",
   "functionAppUrl": "https://func-psasdi-dev-01.azurewebsites.net",
-  "scope": "/subscriptions/9b2ca75b-f2c1-4028-8282-6b7af27cb338/resourceGroups/rg-psas-decision-intelligence-westus-dev/providers/Microsoft.Storage/storageAccounts/stpsasdicorenr"
+  "storageaccount_dev":"stpsasdicorenr",
+  "resourcegroup_dev":"rg-psas-decision-intelligence-westus-dev"
 }
 
