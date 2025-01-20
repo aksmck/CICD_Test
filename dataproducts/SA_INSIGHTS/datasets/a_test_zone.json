@@ -1,5 +1,5 @@
 {
-    "name": "a_test_zone",
+    "name": "a_test_zone_1",
     "properties": {
         "linkedServiceName": {
             "referenceName": "Dataverse1",
