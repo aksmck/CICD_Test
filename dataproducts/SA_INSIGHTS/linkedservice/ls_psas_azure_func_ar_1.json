@@ -1,5 +1,5 @@
 {
-    "name": "ls_psas_azure_func_ar",
+    "name": "ls_psas_azure_func_ar_1",
     "type": "Microsoft.DataFactory/factories/linkedservices",
     "properties": {
         "annotations": [],
