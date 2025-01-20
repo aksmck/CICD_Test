@@ -1,0 +1,18 @@
+{
+    "name": "A_BIT_DB_Job_TRIGGER_TEST_ar",
+    "properties": {
+        "description": "If this is used, ensure that BIT_Job_Trigger_Test is paused. ",
+        "annotations": [],
+        "runtimeState": "Stopped",
+        "pipelines": [],
+        "type": "ScheduleTrigger",
+        "typeProperties": {
+            "recurrence": {
+                "frequency": "$$frequency",
+                "interval": 15,
+                "startTime": "2023-05-27T09:53:00Z",
+                "timeZone": "UTC"
+            }
+        }
+    }
+}
