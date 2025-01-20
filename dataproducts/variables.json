@@ -2,6 +2,7 @@
   "referenceName": "LS_PSAS_DI_SQL_75",
   "functionAppUrl": "https://func-psasdi-dev-01.azurewebsites.net",
   "storageaccount_dev":"stpsasdicorenr",
-  "resourcegroup_dev":"rg-psas-decision-intelligence-westus-dev"
+  "resourcegroup_dev":"rg-psas-decision-intelligence-westus-dev",
+  "frequency":"week"
 }
 
