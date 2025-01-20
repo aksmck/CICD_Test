@@ -21,7 +21,7 @@
             "blobPathBeginsWith": "/usplandingzone/blobs/Test/test",
             "blobPathEndsWith": ".xlsx",
             "ignoreEmptyBlobs": true,
-            "scope": "scope",
+            "scope": "$$scope",
             "events": [
                 "Microsoft.Storage.BlobCreated"
             ]
