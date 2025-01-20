@@ -47,7 +47,7 @@ jobs:
           since: ${{ env.DATE }}
           files: dataproducts/${{ env.FUNCTION_NAME }}/triggers
 
-      - name: Validate and Replace Placeholders in JSON Files
+      - name: Validate and Debug JSON Files
         run: |
           CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
           echo "Changed files: $CHANGED_FILES"
@@ -57,33 +57,73 @@ jobs:
             exit 0
           fi
 
-          VARIABLES_FILE="dataproducts/variables.json"
+          for file in $CHANGED_FILES; do
+            echo "Processing file $file"
+            if [[ -f "$file" && "$file" == *.json ]]; then
+              echo "Validating file: $file"
+              cat "$file"
 
-          if [[ -f "$VARIABLES_FILE" ]]; then
-            echo "Variables file found: $VARIABLES_FILE"
-            VARIABLES_JSON=$(cat "$VARIABLES_FILE")
-
-            for file in $CHANGED_FILES; do
-              echo "Processing file: $file"
-              if [[ -f "$file" && "$file" == *.json ]]; then
-                for key in $(echo "$VARIABLES_JSON" | jq -r 'keys[]'); do
-                  value=$(echo "$VARIABLES_JSON" | jq -r ".${key}")
-                  echo "Replacing placeholder $$${key} with value: $value"
-                  jq --arg key "$key" --arg value "$value" \
-                     'walk(if type == "string" then gsub("\\$\\$" + $key; $value) else . end)' \
-                     "$file" > "${file}.updated"
-                  mv "${file}.updated" "$file"
-                  echo "Updated file: $file"
-                done
+              # Validate JSON structure
+              if jq empty "$file"; then
+                echo "Valid JSON: $file"
               else
-                echo "Skipping invalid or non-JSON file: $file"
+                echo "Invalid JSON structure in $file"
                 exit 1
               fi
-            done
-          else
-            echo "Variables file not found: $VARIABLES_FILE"
-            exit 1
-          fi
+            else
+              echo "Skipping invalid or missing file: $file"
+              exit 1
+            fi
+          done
+          
+      - name: Replace environment-specific variables in JSON
+        run: |
+          CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
+
+          for file in $CHANGED_FILES; do
+            if [[ -f "$file" && "$file" == *.json ]]; then
+              echo "Replacing placeholders in $file"
+              VARIABLES_FILE="dataproducts/variables.json"
+
+              # Check if the variables file exists
+              if [[ -f "$VARIABLES_FILE" ]]; then
+                echo "Variables file found: $VARIABLES_FILE"
+
+                # Read the JSON file into a variable
+                VARIABLES_JSON=$(cat "$VARIABLES_FILE")
+
+                echo "Content of variables.json:"
+                echo "$VARIABLES_JSON"  # Show the content of variables.json
+
+                # Loop through all keys in the variables JSON and replace any corresponding placeholders in the dataset file
+                for key in $(echo "$VARIABLES_JSON" | jq -r 'keys[]'); do
+                  value=$(echo "$VARIABLES_JSON" | jq -r ".${key}")
+                  echo "Key: $key, Value: $value"  # Log the key-value pairs
+
+                  if [[ -n "$value" ]]; then
+                    echo "Replacing placeholder: $$${key} with value: $value"
+
+                    # Update jq substitution to replace $$key with actual value
+                    jq --arg key "$key" --arg value "$value" \
+                       'walk(if type == "string" then gsub("\\$\\$" + $key; $value) else . end)' \
+                       "$file" > "${file}.updated"
+
+                    mv "${file}.updated" "$file"
+                    echo "Updated file: $file"
+                  else
+                    echo "No value found for placeholder: $$${key}. Skipping replacement."
+                  fi
+                done
+              else
+                echo "Variables file not found: $VARIABLES_FILE"
+                exit 1
+              fi
+            else
+              echo "File not found or invalid: $file"
+              exit 1
+            fi
+          done          
+          
 
       - name: Publish ADF Triggers
         run: |
@@ -117,15 +157,19 @@ jobs:
           fi
 
           for file in $CHANGED_FILES; do
-            echo "Processing file: $file"
+            echo "Processing file $file"
             if [[ -f "$file" && "$file" == *.json ]]; then
               trigger_name=$(basename "$file" .json)
               echo "Deploying trigger: $trigger_name"
+
+              # Print the content of the file
+              cat "$file"
 
               # Validate 'properties' field
               if jq -e '.properties' "$file" >/dev/null; then
                 URL="https://management.azure.com/subscriptions/${{ secrets.SUBSCRIPTION_ID }}/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.DataFactory/factories/$FACTORY_NAME/triggers/$trigger_name?api-version=2018-06-01"
 
+                echo "Deploying to URL: $URL"
                 token=$(az account get-access-token --query 'accessToken' -o tsv)
                 response=$(curl -X PUT -H "Content-Type: application/json" \
                     -H "Authorization: Bearer $token" \
