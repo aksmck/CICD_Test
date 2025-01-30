@@ -75,55 +75,6 @@ jobs:
               exit 1
             fi
           done
-          
-      - name: Replace environment-specific variables in JSON
-        run: |
-          CHANGED_FILES="${{ steps.changed-files-since.outputs.all_changed_files }}"
-
-          for file in $CHANGED_FILES; do
-            if [[ -f "$file" && "$file" == *.json ]]; then
-              echo "Replacing placeholders in $file"
-              VARIABLES_FILE="dataproducts/variables.json"
-
-              # Check if the variables file exists
-              if [[ -f "$VARIABLES_FILE" ]]; then
-                echo "Variables file found: $VARIABLES_FILE"
-
-                # Read the JSON file into a variable
-                VARIABLES_JSON=$(cat "$VARIABLES_FILE")
-
-                echo "Content of variables.json:"
-                echo "$VARIABLES_JSON"  # Show the content of variables.json
-
-                # Loop through all keys in the variables JSON and replace any corresponding placeholders in the dataset file
-                for key in $(echo "$VARIABLES_JSON" | jq -r 'keys[]'); do
-                  value=$(echo "$VARIABLES_JSON" | jq -r ".${key}")
-                  echo "Key: $key, Value: $value"  # Log the key-value pairs
-
-                  if [[ -n "$value" ]]; then
-                    echo "Replacing placeholder: $$${key} with value: $value"
-
-                    # Update jq substitution to replace $$key with actual value
-                    jq --arg key "$key" --arg value "$value" \
-                       'walk(if type == "string" then gsub("\\$\\$" + $key; $value) else . end)' \
-                       "$file" > "${file}.updated"
-
-                    mv "${file}.updated" "$file"
-                    echo "Updated file: $file"
-                  else
-                    echo "No value found for placeholder: $$${key}. Skipping replacement."
-                  fi
-                done
-              else
-                echo "Variables file not found: $VARIABLES_FILE"
-                exit 1
-              fi
-            else
-              echo "File not found or invalid: $file"
-              exit 1
-            fi
-          done          
-          
 
       - name: Publish ADF Triggers
         run: |
@@ -189,4 +140,5 @@ jobs:
             else
               echo "Skipping invalid file: $file"
             fi
+          done
           done
